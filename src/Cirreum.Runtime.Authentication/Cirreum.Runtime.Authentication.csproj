@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<RootNamespace>Cirreum.Runtime.Authentication</RootNamespace>
+		<Description>App-facing umbrella for the Authentication pillar. Provides AddAuthentication() and the CirreumAuthenticationBuilder type. Transitively references all six Cirreum.Authentication.* schemes (ApiKey, SignedRequest, SessionTicket, OIDC, Entra, External) — apps install this single package to get the full Authentication track.</Description>
+		<PackageTags>cirreum;runtime;authentication;umbrella</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Runtime — the core composition engine -->
+		<ProjectReference Include="..\..\..\..\Runtime\Cirreum.Runtime.AuthenticationProvider\src\Cirreum.Runtime.AuthenticationProvider\Cirreum.Runtime.AuthenticationProvider.csproj" />
+
+		<!-- Scheme packages — referenced transitively so apps install just this umbrella -->
+		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.ApiKey\src\Cirreum.Authentication.ApiKey\Cirreum.Authentication.ApiKey.csproj" />
+		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.SignedRequest\src\Cirreum.Authentication.SignedRequest\Cirreum.Authentication.SignedRequest.csproj" />
+		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.SessionTicket\src\Cirreum.Authentication.SessionTicket\Cirreum.Authentication.SessionTicket.csproj" />
+		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.Oidc\src\Cirreum.Authentication.Oidc\Cirreum.Authentication.Oidc.csproj" />
+		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.Entra\src\Cirreum.Authentication.Entra\Cirreum.Authentication.Entra.csproj" />
+		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.External\src\Cirreum.Authentication.External\Cirreum.Authentication.External.csproj" />
+
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="Cirreum.Authentication" />
+	</ItemGroup>
+
+</Project>
