@@ -25,4 +25,8 @@
 		<Using Include="Cirreum.Authentication" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="Cirreum.Runtime.Authentication.Tests" />
+	</ItemGroup>
+
 </Project>

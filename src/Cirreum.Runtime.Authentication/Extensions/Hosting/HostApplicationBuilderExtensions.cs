@@ -6,6 +6,7 @@ using Cirreum.Authentication.Configuration;
 using Cirreum.AuthenticationProvider;
 using Cirreum.Providers;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -32,7 +33,8 @@ public static class HostApplicationBuilderExtensions {
 	/// application-user resolvers (<c>AddApplicationUserResolver&lt;T&gt;</c>) here.</param>
 	/// <param name="authentication">Optional callback for ASP.NET-level
 	/// <see cref="AuthenticationOptions"/> overrides.</param>
-	/// <returns>The <see cref="CirreumAuthenticationBuilder"/> for further composition.</returns>
+	/// <returns>The <see cref="AuthorizationBuilder"/> — chain <c>.AddPolicy(...)</c> to register
+	/// additional app-specific authorization policies alongside the predefined Cirreum policies.</returns>
 	/// <remarks>
 	/// <para>
 	/// Uses an explicit composition + selector model with a six-stage pipeline.
@@ -55,7 +57,7 @@ public static class HostApplicationBuilderExtensions {
 	/// Idempotent — calling multiple times on the same host returns without re-running.
 	/// </para>
 	/// </remarks>
-	public static CirreumAuthenticationBuilder AddAuthentication(
+	public static AuthorizationBuilder AddAuthentication(
 		this IHostApplicationBuilder builder,
 		Action<CirreumAuthenticationBuilder>? configure = null,
 		Action<AuthenticationOptions>? authentication = null) {
@@ -70,14 +72,11 @@ public static class HostApplicationBuilderExtensions {
 		}
 		builder.Services.MarkTypeAsRegistered<CirreumAuthenticationMarker>();
 
-		// 1. Map the host's DomainRuntimeType into ProviderRuntimeType so audience-
-		//    based registrars can branch correctly on host-type sensitivity.
-		//    Required — no defensible default.
-		// TODO: what happens if the app doesn't use Authentication at all and thus
-		// doesn't call this method? The runtime type is still required for the
-		// provider-side composition, but we won't have this guard in place. We should
-		// consider whether there's a better way to enforce that the runtime type
-		// is set in that case.
+		// 1. Map the host's DomainRuntimeType (set by the spine via DomainApplication.CreateBuilder) into the
+		//    auth track's ProviderRuntimeType so audience-based registrars can branch on host shape
+		//    (WebApi vs WebApp). The mapping is deliberate and lives here on purpose: the runtime type is
+		//    only consumed by audience-based authentication, so translating DomainContext -> ProviderContext
+		//    inside this method keeps the auth track independent of the spine. Required — no defensible default.
 		if (!builder.Properties.TryGetValue(DomainContext.RuntimeTypeKey, out var runtimeTypeBox)
 			|| runtimeTypeBox is not DomainRuntimeType runtimeType) {
 			throw new InvalidOperationException(
@@ -118,36 +117,35 @@ public static class HostApplicationBuilderExtensions {
 		//    dispatches to a per-scheme IApplicationUserResolver registered by the app.
 		builder.Services.AddAudienceRoleClaimsTransformation();
 
-		// 6. Compose every framework-shipped registrar. Each call reads its
-		//    provider's configuration section and bails appropriately when missing.
-		RegisterFrameworkShippedProviders(builder, authBuilder);
-
-		// 7. App-supplied provider composition (e.g. AddApiKey()), dynamic-resolver,
-		//    and per-scheme application-user-resolver registrations.
+		// 6. App-supplied provider composition (e.g. AddApiKey()), dynamic-resolver, and per-scheme
+		//    application-user-resolver registrations — runs BEFORE audience auto-registration so any
+		//    app-stashed seam (e.g. the Entra downstream-API callback, stashed on the service collection
+		//    by auth.EnableDownstreamApi(...)) is in place when the audience registrars read it.
 		var cirreumBuilder = new CirreumAuthenticationBuilder(
 			builder.Services, authBuilder, builder.Configuration);
 		configure?.Invoke(cirreumBuilder);
 
-		// 8. Predefined authorization policies (System + Standard family) —
-		//    TODO: re-add when AuthorizationPolicies + ApplicationRoles constants
-		//    land in their new home. The legacy Cirreum.Core (which used to host
-		//    them) is being archived; the new home is TBD and this umbrella will
-		//    register the policies against whatever lands.
+		// 7. Compose every framework-shipped audience registrar. Each reads its configuration section
+		//    (and any app-stashed seam) and bails appropriately when missing.
+		RegisterFrameworkShippedProviders(builder, authBuilder);
 
-		// 9. Boot-time Bearer-prefix uniqueness validation. Builds a throwaway SP to
-		//    enumerate IBearerSchemeSelector registrations after every scheme registrar
-		//    and the configure callback have contributed.
-		// TODO:
-		//	 Find a way to not have to build a throwaway SP here. The need to do so is
-		//	 a smell that the validation is too tightly coupled to the DI setup; ideally
-		//	 we could validate the selectors without having to build an SP and resolve
-		//	 them from the container.
-		using (var sp = builder.Services.BuildServiceProvider()) {
-			var bearerSelectors = sp.GetServices<IBearerSchemeSelector>();
-			BearerSchemeValidator.Validate(bearerSelectors);
-		}
+		// 8. Predefined Cirreum authorization policies (System + Standard family). Returns the
+		//    AuthorizationBuilder so the app can chain additional .AddPolicy(...) calls.
+		var authorizationBuilder = DefaultAuthorizationPolicyRegistration.Register(builder);
 
-		return cirreumBuilder;
+		// 9. Boot-time Bearer-prefix uniqueness validation, after the configure callback and audience
+		//    auto-registration have contributed every scheme. Each Bearer-probing scheme registers its
+		//    selector as a concrete singleton instance, so the selectors are read straight from the service
+		//    collection here — no throwaway ServiceProvider (a second container would duplicate singletons,
+		//    break scoped lifetimes, and resolve services before the real application container exists).
+		var bearerSelectors = builder.Services
+			.Select(descriptor => descriptor.ImplementationInstance)
+			.OfType<IBearerSchemeSelector>()
+			.Distinct()
+			.ToList();
+		BearerSchemeValidator.Validate(bearerSelectors);
+
+		return authorizationBuilder;
 	}
 
 	private static void RegisterFrameworkShippedHandlers(AuthenticationBuilder authBuilder) {
