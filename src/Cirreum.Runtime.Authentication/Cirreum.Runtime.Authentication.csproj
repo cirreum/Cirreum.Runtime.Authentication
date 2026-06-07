@@ -7,16 +7,20 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- Runtime — the core composition engine -->
-		<ProjectReference Include="..\..\..\..\Runtime\Cirreum.Runtime.AuthenticationProvider\src\Cirreum.Runtime.AuthenticationProvider\Cirreum.Runtime.AuthenticationProvider.csproj" />
+		<!--
+			Runtime composition engine + the six scheme packages, consumed from the local feed during
+			the auth-track cutover (ProjectReference -> PackageReference, mirroring the Runtime.Server
+			spine re-pin). Referenced as packages so apps install just this umbrella; the schemes flow
+			in transitively. All pinned to the 1.1.0 wave (code-first foundation + coordination L1).
+		-->
+		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.1.0" />
 
-		<!-- Scheme packages — referenced transitively so apps install just this umbrella -->
-		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.ApiKey\src\Cirreum.Authentication.ApiKey\Cirreum.Authentication.ApiKey.csproj" />
-		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.SignedRequest\src\Cirreum.Authentication.SignedRequest\Cirreum.Authentication.SignedRequest.csproj" />
-		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.SessionTicket\src\Cirreum.Authentication.SessionTicket\Cirreum.Authentication.SessionTicket.csproj" />
-		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.Oidc\src\Cirreum.Authentication.Oidc\Cirreum.Authentication.Oidc.csproj" />
-		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.Entra\src\Cirreum.Authentication.Entra\Cirreum.Authentication.Entra.csproj" />
-		<ProjectReference Include="..\..\..\..\Infrastructure\Cirreum.Authentication.External\src\Cirreum.Authentication.External\Cirreum.Authentication.External.csproj" />
+		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.1.0" />
+		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.1.0" />
+		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.1.0" />
+		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.1.0" />
+		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.1.0" />
+		<PackageReference Include="Cirreum.Authentication.External" Version="1.1.0" />
 
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
