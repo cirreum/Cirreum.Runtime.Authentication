@@ -4,6 +4,7 @@ using Cirreum;
 using Cirreum.Authentication;
 using Cirreum.Authentication.Configuration;
 using Cirreum.AuthenticationProvider;
+using Cirreum.Coordination;
 using Cirreum.Providers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -133,7 +134,13 @@ public static class HostApplicationBuilderExtensions {
 		//    AuthorizationBuilder so the app can chain additional .AddPolicy(...) calls.
 		var authorizationBuilder = DefaultAuthorizationPolicyRegistration.Register(builder);
 
-		// 9. Boot-time Bearer-prefix uniqueness validation, after the configure callback and audience
+		// 9. Coordination posture: a scheme that pulled a coordination requirement (e.g. SignedRequest
+		//    strict-nonce) but for which the app never chose a backend fails the host fast here — turning a
+		//    silent mis-configuration into a clear startup error instead of a first-request failure. The
+		//    sentinel is the signal, so this needs no per-scheme marker.
+		CoordinationPostureValidator.Validate(builder.Services);
+
+		// 10. Boot-time Bearer-prefix uniqueness validation, after the configure callback and audience
 		//    auto-registration have contributed every scheme. Each Bearer-probing scheme registers its
 		//    selector as a concrete singleton instance, so the selectors are read straight from the service
 		//    collection here — no throwaway ServiceProvider (a second container would duplicate singletons,

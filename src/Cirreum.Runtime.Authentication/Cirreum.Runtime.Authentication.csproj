@@ -11,16 +11,16 @@
 			Runtime composition engine + the six scheme packages, consumed from the local feed during
 			the auth-track cutover (ProjectReference -> PackageReference, mirroring the Runtime.Server
 			spine re-pin). Referenced as packages so apps install just this umbrella; the schemes flow
-			in transitively. All pinned to the 1.1.0 wave (code-first foundation + coordination L1).
+			in transitively. All pinned to the 1.1.1 wave (coordination extracted to the neutral Cirreum.Coordination primitive).
 		-->
-		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.1.0" />
+		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.1.1" />
 
-		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.1.0" />
-		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.1.0" />
-		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.1.0" />
-		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.1.0" />
-		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.1.0" />
-		<PackageReference Include="Cirreum.Authentication.External" Version="1.1.0" />
+		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Authentication.External" Version="1.1.1" />
 
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
