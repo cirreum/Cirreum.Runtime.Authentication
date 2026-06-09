@@ -5,6 +5,7 @@ using Cirreum.Authentication;
 using Cirreum.Authentication.Configuration;
 using Cirreum.AuthenticationProvider;
 using Cirreum.Coordination;
+using Cirreum.Logging.Deferred;
 using Cirreum.Providers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -139,6 +140,22 @@ public static class HostApplicationBuilderExtensions {
 		//    silent mis-configuration into a clear startup error instead of a first-request failure. The
 		//    sentinel is the signal, so this needs no per-scheme marker.
 		CoordinationPostureValidator.Validate(builder.Services);
+
+		// 9a. Advisory (ADR-0021): the in-memory replay backend does not coordinate across instances — correct
+		//     for single-node / development, but a multi-instance production deployment silently loses replay
+		//     protection. The validator above proves only that *a* backend was chosen, not which, so surface a
+		//     non-blocking notice when the in-memory backend is selected outside Development. This is Information,
+		//     never a fail-fast (a deferred Warning is fatal, and single-node production on the in-memory backend
+		//     is legitimate). The internal in-memory type is matched by name across the Cirreum.Coordination
+		//     assembly boundary; a non-match just means no advisory — it is never load-bearing.
+		var replayGuard = builder.Services.LastOrDefault(d => d.ServiceType == typeof(IReplayGuard));
+		if (replayGuard?.ImplementationType?.Name == "InMemoryReplayGuard" && !builder.Environment.IsDevelopment()) {
+			Logger.CreateDeferredLogger().LogInformation(
+				"Coordination: the in-memory replay backend is selected outside Development. It does not " +
+				"coordinate replay across instances — correct for a single-node deployment, but a multi-instance " +
+				"deployment must register a distributed backend (Cirreum.Coordination.Redis via " +
+				"auth.AddCoordination(c => c.UseRedis())). (ADR-0021.)");
+		}
 
 		// 10. Boot-time Bearer-prefix uniqueness validation, after the configure callback and audience
 		//    auto-registration have contributed every scheme. Each Bearer-probing scheme registers its
