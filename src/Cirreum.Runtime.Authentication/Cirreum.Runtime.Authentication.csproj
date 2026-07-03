@@ -13,17 +13,17 @@
 			spine re-pin). Referenced as packages so apps install just this umbrella; the schemes flow
 			in transitively. All pinned to the 1.1.1 wave (coordination extracted to the neutral Cirreum.Coordination primitive).
 		-->
-		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.0.0" />
 
-		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.1.1" />
-		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.1.1" />
-		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.1.1" />
-		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.1.1" />
-		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.1.1" />
-		<PackageReference Include="Cirreum.Authentication.External" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.0.0" />
+		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.0.0" />
+		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.0.0" />
+		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.0.0" />
+		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.0.0" />
+		<PackageReference Include="Cirreum.Authentication.External" Version="1.0.0" />
 
 		<!-- Config-time advisory logging (the in-memory-coordination-outside-Development notice). -->
-		<PackageReference Include="Cirreum.Logging.Deferred" Version="1.0.113" />
+		<PackageReference Include="Cirreum.Logging.Deferred" Version="1.0.114" />
 
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
