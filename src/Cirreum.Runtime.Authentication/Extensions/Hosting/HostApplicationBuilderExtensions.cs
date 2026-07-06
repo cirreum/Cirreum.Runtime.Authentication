@@ -3,6 +3,7 @@ namespace Microsoft.Extensions.Hosting;
 using Cirreum;
 using Cirreum.Authentication;
 using Cirreum.Authentication.Configuration;
+using Cirreum.Authentication.Events;
 using Cirreum.AuthenticationProvider;
 using Cirreum.Coordination;
 using Cirreum.Logging.Deferred;
@@ -50,6 +51,7 @@ public static class HostApplicationBuilderExtensions {
 	///   <item>Registers framework-shipped handlers (Anonymous, Ambiguous) + selectors (Conflict sentinel, Audience, Anonymous fallback) + the <see cref="IAudienceSchemeMap"/> default impl.</item>
 	///   <item>Registers the dynamic forward <c>PolicyScheme</c> with the <see cref="SchemeResolver.Resolve"/> callback.</item>
 	///   <item>Calls <c>services.AddAudienceRoleClaimsTransformation()</c> to wire the claims transformer.</item>
+	///   <item>Registers the default in-process <c>IAuthenticationEventPublisher</c> (replaceable via <c>TryAdd</c>); <c>auth.AddEventCoordination()</c> in the callback turns on cross-replica delivery.</item>
 	///   <item>Auto-registers the framework-shipped registrars that still bind from appsettings (Oidc, Entra, External) via the typed <c>RegisterAuthenticationProvider&lt;...&gt;()</c> helper. ApiKey, SignedRequest, and SessionTicket are excluded — the app composes them via <c>auth.AddApiKey(...)</c> / <c>auth.AddSignedRequest&lt;T&gt;(...)</c> / <c>auth.AddSessionTicket(...)</c> in the callback.</item>
 	///   <item>Invokes the app's <paramref name="configure"/> callback for provider composition (<c>AddApiKey</c>), dynamic-resolver, and application-user-resolver registrations.</item>
 	///   <item>Registers the predefined Cirreum authorization policies (<c>Standard</c>, <c>StandardAdmin</c>, etc.).</item>
@@ -119,6 +121,14 @@ public static class HostApplicationBuilderExtensions {
 		//    dispatches to a per-scheme IApplicationUserResolver registered by the app.
 		builder.Services.AddAudienceRoleClaimsTransformation();
 
+		// 5a. The auth-event bus default publisher (ADR-0025). In-process, ordered
+		//     dispatch: consumer handlers first, transport bridges last. A single-replica
+		//     app is complete with this alone; auth.AddEventCoordination() in the
+		//     configure callback turns on cross-replica delivery by registering the
+		//     bridge + inbound subscriber this publisher composes with. TryAdd —
+		//     an app-registered publisher wins.
+		builder.Services.TryAddSingleton<IAuthenticationEventPublisher, InProcessAuthenticationEventPublisher>();
+
 		// 6. App-supplied provider composition (e.g. AddApiKey()), dynamic-resolver, and per-scheme
 		//    application-user-resolver registrations — runs BEFORE audience auto-registration so any
 		//    app-stashed seam (e.g. the Entra downstream-API callback, stashed on the service collection
@@ -154,7 +164,7 @@ public static class HostApplicationBuilderExtensions {
 				"Coordination: the in-memory replay backend is selected outside Development. It does not " +
 				"coordinate replay across instances — correct for a single-node deployment, but a multi-instance " +
 				"deployment must register a distributed backend (Cirreum.Coordination.Redis via " +
-				"auth.AddCoordination(c => c.UseRedis())). (ADR-0021.)");
+				"auth.ConfigureCoordination(c => c.UseRedis())). (ADR-0021.)");
 		}
 
 		// 10. Boot-time Bearer-prefix uniqueness validation, after the configure callback and audience

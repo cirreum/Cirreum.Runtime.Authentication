@@ -75,10 +75,30 @@ See each scheme's package for its configuration shape and security model — e.g
 
 At startup a Bearer-prefix validator ensures opaque-Bearer schemes (ApiKey, SessionTicket, …) declare unique token prefixes, failing fast on a collision rather than mis-routing at runtime.
 
+## Auth events — revocation and termination delivery
+
+Admin actions like "revoke this API key", "disable this user", or "force sign-out" publish an event through `IAuthenticationEventPublisher`; framework handlers consume it (the ApiKey denylist, the grant-cache invalidator, the server's connection terminator). The default in-process publisher is registered automatically — a single-replica app needs no wiring at all.
+
+For multi-replica deployments, turn on cross-replica delivery inside the same callback:
+
+```csharp
+builder.AddAuthentication(auth => auth
+    .AddApiKey(...)
+    .AddEventCoordination()                          // cross-replica auth-event delivery
+    .ConfigureCoordination(c => c.UseRedis()));      // Redis-backed coordination (order-independent)
+```
+
+`AddEventCoordination()` rides the coordination broadcast primitive: events published on one replica are applied locally first, then fanned out to every other replica. Delivery is at-most-once — a replica that misses an event while disconnected heals at its next boot hydration, which remains the durable backstop.
+
+Coordination state (and this channel) is namespaced per application and environment automatically (`{app}:{env}`); override with `ConfigureCoordination(c => c.WithScope(...))`. Two operational notes: whoever can publish on the coordination backend's connection can forge auth events — give coordination its own connection (`c.UseRedis("connectionKey")`) when the shared one has a broader writer set; and on Azure Managed Redis, pub/sub does **not** cross active geo-replication regions — run region-local coordination backends when active-active, and let cross-region convergence ride authoritative state. Channels under the `cirreum:` prefix are framework-reserved.
+
+To publish your own events, inject `IAuthenticationEventPublisher` and publish one of the `Cirreum.Authentication.Events` records (or an app-defined `[MessageVersion]`-tagged `IAuthenticationEvent`). Handlers implement `IAuthenticationEventHandler<TEvent>` and must be idempotent.
+
 ## What this package contains
 
-- **`builder.AddAuthentication(configure?, authentication?)`** — the one entry point; composes the schemes, selectors, handlers, the dynamic forward scheme, and the claims transformer, then runs the boot-time validator. Returns a `CirreumAuthenticationBuilder`.
+- **`builder.AddAuthentication(configure?, authentication?)`** — the one entry point; composes the schemes, selectors, handlers, the dynamic forward scheme, the claims transformer, and the default auth-event publisher, then runs the boot-time validator. Returns a `CirreumAuthenticationBuilder`.
 - The framework-shipped **selectors** (conflict sentinel, audience, anonymous) and **handlers** (anonymous, ambiguous) and the **`CirreumAuthenticationBuilder`** the scheme packages extend (`AddApiKey`, `AddSignedRequest<T>`, `AddSessionTicket`, `AddExternalTenantResolver<T>`, `AddApplicationUserResolver<T>`).
+- The **auth-event delivery machinery** — the in-process `IAuthenticationEventPublisher` and, behind `auth.AddEventCoordination()`, the versioned event registry, the outbound transport bridge, and the inbound subscriber over the coordination broadcast channel.
 
 Composition is driven by `Cirreum.Runtime.AuthenticationProvider`, which flows in transitively.
 
