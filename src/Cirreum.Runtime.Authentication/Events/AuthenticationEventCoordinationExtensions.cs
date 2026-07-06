@@ -25,9 +25,17 @@ public static class AuthenticationEventCoordinationExtensions {
 	/// inbound subscriber over whichever <c>ISignalBroadcaster</c> is registered: Redis
 	/// when the app selects it anywhere
 	/// (<c>auth.ConfigureCoordination(c =&gt; c.UseRedis())</c> — order-independent with
-	/// this call), otherwise the safe in-process default, which degrades to today's
-	/// single-replica behavior. Delivery is at-most-once with no buffering; a replica
-	/// that misses events while disconnected heals at its next boot hydration.
+	/// this call), otherwise the safe in-process default. Delivery is at-most-once with
+	/// no buffering; a replica that misses events while disconnected heals at its next
+	/// boot hydration.
+	/// </para>
+	/// <para>
+	/// A publishing replica is itself subscribed, so every publish is also received back
+	/// (self-echo) and consumer handlers run a second time — inline on the in-process
+	/// default, via the backend on Redis. Correct under the handlers-are-idempotent
+	/// contract; echo-pass failures are logged rather than surfaced to the publishing
+	/// caller. Consequently, do not hold a non-reentrant async lock across
+	/// <c>PublishAsync</c> that a handler also acquires.
 	/// </para>
 	/// <para>
 	/// When no <c>CoordinationScope</c> has been registered, this call defaults it to the
@@ -69,7 +77,11 @@ public static class AuthenticationEventCoordinationExtensions {
 		// Default the coordination scope to the canonical {app}:{env}. TryAdd, and
 		// WithScope(...) uses Replace — so an explicit scope wins in any order.
 		services.TryAddSingleton<CoordinationScope>(static sp => {
-			var environment = sp.GetRequiredService<IDomainEnvironment>();
+			var environment = sp.GetService<IDomainEnvironment>()
+				?? throw new InvalidOperationException(
+					"The default CoordinationScope derives {app}:{env} from IDomainEnvironment, " +
+					"which is not registered. Host via DomainApplication.CreateBuilder, or register " +
+					"an explicit scope: auth.ConfigureCoordination(c => c.WithScope(...)).");
 			return CoordinationScope.For(environment.ApplicationName, environment.EnvironmentName);
 		});
 

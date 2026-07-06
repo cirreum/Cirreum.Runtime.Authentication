@@ -66,6 +66,19 @@ public class AuthenticationEventTransportBridgeTests {
 	}
 
 	[Fact]
+	public async Task HandleAsync_UnversionedEventType_ThrowsPermanentConfigurationError() {
+		var registry = await CreateInitializedRegistryAsync();
+		var broadcaster = Substitute.For<ISignalBroadcaster>();
+		var bridge = new AuthenticationEventTransportBridge<UnversionedEvent>(registry, broadcaster);
+
+		var act = () => bridge.HandleAsync(new UnversionedEvent(DateTimeOffset.UtcNow)).AsTask();
+
+		(await act.Should().ThrowAsync<InvalidOperationException>())
+			.Which.Message.Should().Contain("permanent configuration error");
+		await broadcaster.DidNotReceiveWithAnyArgs().PublishAsync(default!, default, default);
+	}
+
+	[Fact]
 	public async Task HandleAsync_IsRegisteredAsBridgeMarker() {
 		var registry = await CreateInitializedRegistryAsync();
 		var bridge = new AuthenticationEventTransportBridge<CredentialRevoked>(

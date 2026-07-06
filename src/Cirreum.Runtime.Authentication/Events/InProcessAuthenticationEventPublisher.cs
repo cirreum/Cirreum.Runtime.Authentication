@@ -2,6 +2,7 @@ namespace Cirreum.Authentication.Events;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Runtime.ExceptionServices;
 
 /// <summary>
 /// The default <see cref="IAuthenticationEventPublisher"/> — synchronous, ordered,
@@ -12,10 +13,19 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 /// <remarks>
 /// <para>
+/// Dispatch keys on the event's <em>runtime</em> type, not the static
+/// <c>TEvent</c> binding of the <c>PublishAsync</c> call — handlers
+/// register against concrete event types, so publishing through a less-derived reference
+/// (e.g. iterating a collection of <see cref="IAuthenticationEvent"/>) still reaches
+/// every concrete-typed handler, and the wire identity the bridge stamps always matches
+/// the handlers that ran locally.
+/// </para>
+/// <para>
 /// After all handlers run, failures are surfaced to the caller as an
 /// <see cref="AggregateException"/> — an admin command reports partial failure, and the
 /// operator's retry (safe: handlers are idempotent) becomes the publishing replica's own
-/// retry leg.
+/// retry leg. One exception: a missing <c>[MessageVersion]</c> wire identity is a
+/// permanent configuration error the bridge reports as such — republishing cannot fix it.
 /// </para>
 /// <para>
 /// Registered by <c>AddAuthentication(...)</c> via <c>TryAddSingleton</c>, so an app can
@@ -38,9 +48,13 @@ internal sealed partial class InProcessAuthenticationEventPublisher(
 
 		ArgumentNullException.ThrowIfNull(evt);
 
+		var eventType = evt.GetType();
+		var (serviceType, handleMethod) = AuthenticationEventHandlerInvoker.For(eventType);
+
 		using var scope = scopeFactory.CreateScope();
 		var handlers = scope.ServiceProvider
-			.GetServices<IAuthenticationEventHandler<TEvent>>()
+			.GetServices(serviceType)
+			.Where(static h => h is not null)
 			.ToArray();
 
 		List<Exception>? failures = null;
@@ -50,7 +64,8 @@ internal sealed partial class InProcessAuthenticationEventPublisher(
 			if (handler is IAuthenticationEventTransportBridge) {
 				continue;
 			}
-			failures = await RunIsolatedAsync(handler, evt, failures, cancellationToken)
+			failures = await this.RunIsolatedAsync(
+				handleMethod, handler!, evt, eventType, failures, cancellationToken)
 				.ConfigureAwait(false);
 		}
 
@@ -59,33 +74,41 @@ internal sealed partial class InProcessAuthenticationEventPublisher(
 			if (handler is not IAuthenticationEventTransportBridge) {
 				continue;
 			}
-			failures = await RunIsolatedAsync(handler, evt, failures, cancellationToken)
+			failures = await this.RunIsolatedAsync(
+				handleMethod, handler, evt, eventType, failures, cancellationToken)
 				.ConfigureAwait(false);
 		}
 
 		if (failures is { Count: > 0 }) {
 			throw new AggregateException(
-				$"One or more handlers failed while publishing {typeof(TEvent).Name}. " +
+				$"One or more handlers failed while publishing {eventType.Name}. " +
 				"Local effects from succeeding handlers have applied; handlers are " +
-				"idempotent, so republishing the event is the safe retry.",
+				"idempotent, so republishing the event is the safe retry (see the inner " +
+				"exceptions — a permanent configuration error says so explicitly).",
 				failures);
 		}
 	}
 
-	private async ValueTask<List<Exception>?> RunIsolatedAsync<TEvent>(
-		IAuthenticationEventHandler<TEvent> handler,
-		TEvent evt,
+	private async ValueTask<List<Exception>?> RunIsolatedAsync(
+		System.Reflection.MethodInfo handleMethod,
+		object handler,
+		object evt,
+		Type eventType,
 		List<Exception>? failures,
-		CancellationToken cancellationToken)
-		where TEvent : IAuthenticationEvent {
+		CancellationToken cancellationToken) {
 
 		try {
-			await handler.HandleAsync(evt, cancellationToken).ConfigureAwait(false);
-		} catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
-			throw;
+			await AuthenticationEventHandlerInvoker
+				.InvokeAsync(handleMethod, handler, evt, cancellationToken)
+				.ConfigureAwait(false);
 		} catch (Exception e) {
-			Log.HandlerFailed(logger, e, handler.GetType().Name, typeof(TEvent).Name);
-			(failures ??= []).Add(e);
+			var cause = AuthenticationEventHandlerInvoker.Unwrap(e);
+			if (cause is OperationCanceledException && cancellationToken.IsCancellationRequested) {
+				// The caller gave up — propagate cancellation rather than aggregating.
+				ExceptionDispatchInfo.Capture(cause).Throw();
+			}
+			Log.HandlerFailed(logger, cause, handler.GetType().Name, eventType.Name);
+			(failures ??= []).Add(cause);
 		}
 		return failures;
 	}

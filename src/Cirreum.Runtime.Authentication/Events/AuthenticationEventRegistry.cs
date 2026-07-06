@@ -51,6 +51,15 @@ public sealed class AuthenticationEventRegistry(
 		foreach (var type in AssemblyScanner.ScanExportedTypes(IsConcreteAuthenticationEvent)) {
 			var attr = type.GetCustomAttribute<MessageVersionAttribute>();
 			if (attr is null) {
+				// Publishable and locally handleable, but it can never cross replicas —
+				// the transport bridge will fail for it, permanently. Surface the
+				// misconfiguration at startup, where the fix is obvious, instead of at
+				// first publish.
+				logger.LogWarning(
+					"Concrete IAuthenticationEvent type {EventType} carries no [MessageVersion] attribute. " +
+					"It can be published and handled locally, but it cannot cross replicas — " +
+					"the auth-event transport bridge will fail for it.",
+					type.FullName);
 				continue;
 			}
 			this._typesByIdentity.TryAdd(KeyFor(attr.Identifier, attr.Version), type);

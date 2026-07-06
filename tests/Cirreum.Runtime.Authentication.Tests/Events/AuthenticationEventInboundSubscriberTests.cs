@@ -117,6 +117,23 @@ public class AuthenticationEventInboundSubscriberTests {
 	}
 
 	[Fact]
+	public async Task EnvelopeWithoutPayload_IsDroppedWithoutFaultingTheSubscription() {
+		var recorder = new Recorder();
+		var (broadcaster, provider) = await CreateSubscribedAsync(services =>
+			services.AddSingleton<IAuthenticationEventHandler<CredentialRevoked>>(recorder));
+		using var _ = provider;
+
+		// A syntactically valid envelope with no Payload member: JsonElement's default
+		// ValueKind is Undefined, and Deserialize on it throws a NON-JsonException —
+		// this must be gated, not escape into the (logger-free, on Redis) pump.
+		await broadcaster.PublishAsync(
+			"cirreum:_auth-events",
+			Encoding.UTF8.GetBytes("""{"Identifier":"authentication.credential-revoked","Version":"1"}"""));
+
+		recorder.Events.Should().BeEmpty();
+	}
+
+	[Fact]
 	public async Task UnknownIdentity_IsDropped() {
 		var recorder = new Recorder();
 		var (broadcaster, provider) = await CreateSubscribedAsync(services =>

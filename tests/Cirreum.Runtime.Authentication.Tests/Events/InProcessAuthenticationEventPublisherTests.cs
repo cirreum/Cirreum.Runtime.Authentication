@@ -93,6 +93,23 @@ public class InProcessAuthenticationEventPublisherTests {
 	}
 
 	[Fact]
+	public async Task PublishAsync_LessDerivedStaticBinding_StillReachesConcreteHandlers() {
+		var order = new List<string>();
+		var publisher = CreatePublisher(services => {
+			services.AddSingleton<IAuthenticationEventHandler<CredentialRevoked>>(
+				new RecordingConsumer(order, "concrete"));
+		}, out var provider);
+		using var _ = provider;
+
+		// Publish through the interface binding — e.g. iterating a heterogeneous
+		// List<IAuthenticationEvent>. Dispatch must key on the runtime type.
+		IAuthenticationEvent evt = Event();
+		await publisher.PublishAsync(evt);
+
+		order.Should().Equal("concrete");
+	}
+
+	[Fact]
 	public async Task PublishAsync_CallerCancellation_PropagatesAsCancellation() {
 		using var cts = new CancellationTokenSource();
 		var publisher = CreatePublisher(services => {

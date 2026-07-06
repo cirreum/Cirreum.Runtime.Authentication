@@ -52,8 +52,8 @@ public static class HostApplicationBuilderExtensions {
 	///   <item>Registers the dynamic forward <c>PolicyScheme</c> with the <see cref="SchemeResolver.Resolve"/> callback.</item>
 	///   <item>Calls <c>services.AddAudienceRoleClaimsTransformation()</c> to wire the claims transformer.</item>
 	///   <item>Registers the default in-process <c>IAuthenticationEventPublisher</c> (replaceable via <c>TryAdd</c>); <c>auth.AddEventCoordination()</c> in the callback turns on cross-replica delivery.</item>
+	///   <item>Invokes the app's <paramref name="configure"/> callback for provider composition (<c>AddApiKey</c>), dynamic-resolver, and application-user-resolver registrations — deliberately BEFORE audience auto-registration, so app-stashed seams (e.g. the Entra downstream-API callback) are in place when the audience registrars read them.</item>
 	///   <item>Auto-registers the framework-shipped registrars that still bind from appsettings (Oidc, Entra, External) via the typed <c>RegisterAuthenticationProvider&lt;...&gt;()</c> helper. ApiKey, SignedRequest, and SessionTicket are excluded — the app composes them via <c>auth.AddApiKey(...)</c> / <c>auth.AddSignedRequest&lt;T&gt;(...)</c> / <c>auth.AddSessionTicket(...)</c> in the callback.</item>
-	///   <item>Invokes the app's <paramref name="configure"/> callback for provider composition (<c>AddApiKey</c>), dynamic-resolver, and application-user-resolver registrations.</item>
 	///   <item>Registers the predefined Cirreum authorization policies (<c>Standard</c>, <c>StandardAdmin</c>, etc.).</item>
 	///   <item>Runs the boot-time <see cref="BearerSchemeValidator"/> — fails fast on cross-provider Bearer-prefix collisions.</item>
 	/// </list>

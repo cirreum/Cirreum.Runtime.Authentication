@@ -1,6 +1,7 @@
 namespace Cirreum.Authentication.Events;
 
 using Cirreum.Coordination;
+using Cirreum.Messaging;
 using System.Text.Json;
 
 /// <summary>
@@ -41,7 +42,20 @@ internal sealed class AuthenticationEventTransportBridge<TEvent>(
 
 		// Resolve identity from the runtime type — TEvent may be a less-derived binding.
 		var eventType = evt.GetType();
-		var definition = registry.GetDefinitionFor(eventType);
+		MessageDefinition definition;
+		try {
+			definition = registry.GetDefinitionFor(eventType);
+		} catch (InvalidOperationException e) {
+			// Distinguish this from transient handler failures: republishing can never
+			// fix a missing wire identity, and the publisher's retry guidance would
+			// otherwise send the operator in circles.
+			throw new InvalidOperationException(
+				$"{eventType.Name} cannot cross replicas: no [MessageVersion] wire identity " +
+				"was discovered for it. This is a permanent configuration error — " +
+				"republishing will not succeed. Tag the event type with " +
+				"[MessageVersion(identifier, version)] and make it public so the registry " +
+				"scan can discover it. (Local handlers have already run.)", e);
+		}
 
 		var envelope = new AuthenticationEventEnvelope(
 			definition.Identifier,

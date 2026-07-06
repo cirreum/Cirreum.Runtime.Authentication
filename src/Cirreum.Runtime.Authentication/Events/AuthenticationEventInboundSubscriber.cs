@@ -3,8 +3,6 @@ namespace Cirreum.Authentication.Events;
 using Cirreum.Coordination;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
-using System.Reflection;
 using System.Text.Json;
 
 /// <summary>
@@ -12,8 +10,8 @@ using System.Text.Json;
 /// coordination broadcast channel, resolves each received envelope to its concrete event
 /// type through the <see cref="AuthenticationEventRegistry"/>, and dispatches to every
 /// local <see cref="IAuthenticationEventHandler{TEvent}"/> <em>except</em> transport
-/// bridges — excluding bridges is what makes a publish-receive loop structurally
-/// impossible.
+/// bridges — excluding bridges prevents a publish-receive loop on the dispatch flow (see
+/// <see cref="AuthenticationEventDispatchScope"/> for the guard's reach and its limit).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,8 +24,9 @@ using System.Text.Json;
 /// <para>
 /// Wire input is treated as untrusted in shape (whoever can publish on the coordination
 /// connection can put arbitrary bytes on the channel): malformed envelopes, unknown
-/// <c>(identifier, version)</c> identities, and payloads that fail to deserialize are
-/// logged and dropped — they never fault the subscription.
+/// <c>(identifier, version)</c> identities, and payloads that fail to deserialize —
+/// whatever the exception type — are logged and dropped; they never fault the
+/// subscription.
 /// </para>
 /// <para>
 /// Handler failures during inbound dispatch are logged and isolated per handler; there is
@@ -41,8 +40,6 @@ internal sealed partial class AuthenticationEventInboundSubscriber(
 	IServiceScopeFactory scopeFactory,
 	ILogger<AuthenticationEventInboundSubscriber> logger
 ) {
-
-	private static readonly ConcurrentDictionary<Type, MethodInfo> _handleMethods = new();
 
 	/// <summary>
 	/// Subscribes to the auth-event channel. Called once at startup; the subscription
@@ -64,7 +61,8 @@ internal sealed partial class AuthenticationEventInboundSubscriber(
 
 		if (envelope is null
 			|| string.IsNullOrWhiteSpace(envelope.Identifier)
-			|| string.IsNullOrWhiteSpace(envelope.Version)) {
+			|| string.IsNullOrWhiteSpace(envelope.Version)
+			|| envelope.Payload.ValueKind is JsonValueKind.Undefined) {
 			Log.IncompleteEnvelope(logger);
 			return;
 		}
@@ -77,7 +75,10 @@ internal sealed partial class AuthenticationEventInboundSubscriber(
 		object? evt;
 		try {
 			evt = envelope.Payload.Deserialize(eventType);
-		} catch (JsonException e) {
+		} catch (Exception e) when (e is not OperationCanceledException) {
+			// Hostile wire input can produce more than JsonException here (e.g.
+			// InvalidOperationException, NotSupportedException) — anything that escaped
+			// would be swallowed silently by the logger-free Redis pump. Log and drop.
 			Log.PayloadDeserializationFailed(logger, e, envelope.Identifier, envelope.Version);
 			return;
 		}
@@ -92,24 +93,23 @@ internal sealed partial class AuthenticationEventInboundSubscriber(
 	private async ValueTask DispatchAsync(object evt, Type eventType, CancellationToken cancellationToken) {
 
 		using var scope = scopeFactory.CreateScope();
-		var handlerServiceType = typeof(IAuthenticationEventHandler<>).MakeGenericType(eventType);
-		var handleMethod = _handleMethods.GetOrAdd(
-			handlerServiceType,
-			static t => t.GetMethod(nameof(IAuthenticationEventHandler<IAuthenticationEvent>.HandleAsync))!);
+		var (serviceType, handleMethod) = AuthenticationEventHandlerInvoker.For(eventType);
 
 		AuthenticationEventDispatchScope.EnterInboundDispatch();
 		try {
-			foreach (var handler in scope.ServiceProvider.GetServices(handlerServiceType)) {
+			foreach (var handler in scope.ServiceProvider.GetServices(serviceType)) {
 				if (handler is null or IAuthenticationEventTransportBridge) {
 					continue;
 				}
 				try {
-					await ((ValueTask)handleMethod.Invoke(handler, [evt, cancellationToken])!)
+					await AuthenticationEventHandlerInvoker
+						.InvokeAsync(handleMethod, handler, evt, cancellationToken)
 						.ConfigureAwait(false);
-				} catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
-					throw;
 				} catch (Exception e) {
-					var cause = e is TargetInvocationException { InnerException: { } inner } ? inner : e;
+					var cause = AuthenticationEventHandlerInvoker.Unwrap(e);
+					if (cause is OperationCanceledException && cancellationToken.IsCancellationRequested) {
+						throw;
+					}
 					Log.InboundHandlerFailed(logger, cause, handler.GetType().Name, eventType.Name);
 				}
 			}
@@ -125,7 +125,7 @@ internal sealed partial class AuthenticationEventInboundSubscriber(
 		public static partial void MalformedEnvelope(ILogger logger, Exception exception);
 
 		[LoggerMessage(EventId = 2, Level = LogLevel.Warning,
-			Message = "Dropped an auth-event signal: the envelope was missing its identifier or version.")]
+			Message = "Dropped an auth-event signal: the envelope was missing its identifier, version, or payload.")]
 		public static partial void IncompleteEnvelope(ILogger logger);
 
 		[LoggerMessage(EventId = 3, Level = LogLevel.Warning,
