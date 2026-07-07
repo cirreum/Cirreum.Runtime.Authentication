@@ -11,14 +11,14 @@
 			Runtime composition engine + the six scheme packages. Referenced as packages so apps
 			install just this umbrella; the schemes flow in transitively.
 		-->
-		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.0.2" />
+		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.1.0" />
 
-		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.0.2" />
-		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.0.2" />
-		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.0.2" />
-		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.0.2" />
-		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.0.2" />
-		<PackageReference Include="Cirreum.Authentication.External" Version="1.0.2" />
+		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.0.3" />
+		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.0.3" />
+		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.0.3" />
+		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.0.3" />
+		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.0.3" />
+		<PackageReference Include="Cirreum.Authentication.External" Version="1.0.3" />
 
 		<!-- Config-time advisory logging (the in-memory-coordination-outside-Development notice). -->
 		<PackageReference Include="Cirreum.Logging.Deferred" Version="1.0.115" />
@@ -30,7 +30,7 @@
 			package. Startup supplies ISystemInitializer for the registry/subscriber bootstrap.
 		-->
 		<PackageReference Include="Cirreum.Coordination.Redis" Version="1.1.0" />
-		<PackageReference Include="Cirreum.Startup" Version="1.0.120" />
+		<PackageReference Include="Cirreum.Startup" Version="1.0.121" />
 
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
