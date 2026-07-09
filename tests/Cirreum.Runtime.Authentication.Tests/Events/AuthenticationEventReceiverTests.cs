@@ -8,13 +8,13 @@ using System.Text;
 using System.Text.Json;
 
 /// <summary>
-/// Tests for <see cref="AuthenticationEventInboundSubscriber"/> — inbound wire dispatch.
+/// Tests for <see cref="AuthenticationEventReceiver"/> — inbound wire dispatch.
 /// Uses the real in-process <c>ISignalBroadcaster</c> (via <c>AddCoordination()</c>) so
 /// signals flow through the genuine subscribe path. Its in-memory implementation awaits
 /// subscribers inline, so a subscriber fault would surface as a throw from
 /// <c>PublishAsync</c> — the hostile-input tests assert exactly that it never does.
 /// </summary>
-public class AuthenticationEventInboundSubscriberTests {
+public class AuthenticationEventReceiverTests {
 
 	private sealed class Recorder : IAuthenticationEventHandler<CredentialRevoked> {
 		public List<CredentialRevoked> Events { get; } = [];
@@ -53,11 +53,11 @@ public class AuthenticationEventInboundSubscriberTests {
 			NullLogger<AuthenticationEventRegistry>.Instance);
 		await registry.InitializeAsync();
 
-		var subscriber = new AuthenticationEventInboundSubscriber(
+		var subscriber = new AuthenticationEventReceiver(
 			provider.GetRequiredService<ISignalBroadcaster>(),
 			registry,
 			provider.GetRequiredService<IServiceScopeFactory>(),
-			NullLogger<AuthenticationEventInboundSubscriber>.Instance);
+			NullLogger<AuthenticationEventReceiver>.Instance);
 		await subscriber.SubscribeAsync();
 
 		return (provider.GetRequiredService<ISignalBroadcaster>(), provider);

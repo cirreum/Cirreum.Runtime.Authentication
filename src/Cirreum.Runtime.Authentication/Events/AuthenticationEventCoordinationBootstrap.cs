@@ -28,7 +28,7 @@ internal sealed class AuthenticationEventCoordinationBootstrap : ISystemInitiali
 		await registry.InitializeAsync().ConfigureAwait(false);
 
 		await serviceProvider
-			.GetRequiredService<AuthenticationEventInboundSubscriber>()
+			.GetRequiredService<AuthenticationEventReceiver>()
 			.SubscribeAsync()
 			.ConfigureAwait(false);
 	}

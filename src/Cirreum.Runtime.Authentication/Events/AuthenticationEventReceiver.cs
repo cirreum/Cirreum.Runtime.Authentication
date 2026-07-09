@@ -34,11 +34,11 @@ using System.Text.Json;
 /// any missed or failed delivery.
 /// </para>
 /// </remarks>
-internal sealed partial class AuthenticationEventInboundSubscriber(
+internal sealed partial class AuthenticationEventReceiver(
 	ISignalBroadcaster broadcaster,
 	AuthenticationEventRegistry registry,
 	IServiceScopeFactory scopeFactory,
-	ILogger<AuthenticationEventInboundSubscriber> logger
+	ILogger<AuthenticationEventReceiver> logger
 ) {
 
 	/// <summary>
@@ -67,7 +67,8 @@ internal sealed partial class AuthenticationEventInboundSubscriber(
 			return;
 		}
 
-		if (!registry.TryResolveType(envelope.Identifier, envelope.Version, out var eventType)) {
+		var eventType = registry.ResolveType(envelope.Identifier, envelope.Version);
+		if (eventType is null) {
 			Log.UnknownEventIdentity(logger, envelope.Identifier, envelope.Version);
 			return;
 		}

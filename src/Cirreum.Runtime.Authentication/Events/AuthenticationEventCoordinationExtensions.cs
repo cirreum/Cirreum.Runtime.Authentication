@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 /// <summary>
-/// Composition verb for cross-replica auth-event delivery (ADR-0025).
+/// Composition verb for cross-replica auth-event delivery.
 /// </summary>
 public static class AuthenticationEventCoordinationExtensions {
 
@@ -76,7 +76,7 @@ public static class AuthenticationEventCoordinationExtensions {
 
 		// Default the coordination scope to the canonical {app}:{env}. TryAdd, and
 		// WithScope(...) uses Replace — so an explicit scope wins in any order.
-		services.TryAddSingleton<CoordinationScope>(static sp => {
+		services.TryAddSingleton(static sp => {
 			var environment = sp.GetService<IDomainEnvironment>()
 				?? throw new InvalidOperationException(
 					"The default CoordinationScope derives {app}:{env} from IDomainEnvironment, " +
@@ -86,14 +86,14 @@ public static class AuthenticationEventCoordinationExtensions {
 		});
 
 		services.TryAddSingleton<AuthenticationEventRegistry>();
-		services.TryAddSingleton<AuthenticationEventInboundSubscriber>();
+		services.TryAddSingleton<AuthenticationEventReceiver>();
 
-		// The outbound bridge — an ordinary handler carrying the transport-bridge marker.
+		// The outbound sender — an ordinary handler carrying the transport-bridge marker.
 		// Open-generic: one registration covers the framework's four events plus any
 		// app-defined event type. Its presence is what turns distribution on.
 		services.TryAddEnumerable(ServiceDescriptor.Singleton(
 			typeof(IAuthenticationEventHandler<>),
-			typeof(AuthenticationEventTransportBridge<>)));
+			typeof(AuthenticationEventSender<>)));
 
 		return builder;
 	}

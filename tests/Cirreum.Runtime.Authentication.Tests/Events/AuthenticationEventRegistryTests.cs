@@ -21,28 +21,27 @@ public class AuthenticationEventRegistryTests {
 	[InlineData("authentication.user-account-disabled", "1", typeof(UserAccountDisabled))]
 	[InlineData("authentication.session-termination-requested", "1", typeof(SessionTerminationRequested))]
 	[InlineData("authentication.grants-invalidated", "1", typeof(GrantsInvalidated))]
-	public async Task TryResolveType_ResolvesEveryFrameworkEvent(
+	public async Task ResolveType_ResolvesEveryFrameworkEvent(
 		string identifier, string version, Type expected) {
 		var registry = await CreateInitializedAsync();
 
-		var resolved = registry.TryResolveType(identifier, version, out var eventType);
+		var eventType = registry.ResolveType(identifier, version);
 
-		resolved.Should().BeTrue();
 		eventType.Should().Be(expected);
 	}
 
 	[Fact]
-	public async Task TryResolveType_UnknownIdentifier_Misses() {
+	public async Task ResolveType_UnknownIdentifier_Misses() {
 		var registry = await CreateInitializedAsync();
 
-		registry.TryResolveType("authentication.not-a-thing", "1", out _).Should().BeFalse();
+		registry.ResolveType("authentication.not-a-thing", "1").Should().BeNull();
 	}
 
 	[Fact]
-	public async Task TryResolveType_KnownIdentifierUnknownVersion_Misses() {
+	public async Task ResolveType_KnownIdentifierUnknownVersion_Misses() {
 		var registry = await CreateInitializedAsync();
 
-		registry.TryResolveType("authentication.credential-revoked", "999", out _).Should().BeFalse();
+		registry.ResolveType("authentication.credential-revoked", "999").Should().BeNull();
 	}
 
 	[Fact]

@@ -121,11 +121,11 @@ public static class HostApplicationBuilderExtensions {
 		//    dispatches to a per-scheme IApplicationUserResolver registered by the app.
 		builder.Services.AddAudienceRoleClaimsTransformation();
 
-		// 5a. The auth-event bus default publisher (ADR-0025). In-process, ordered
+		// 5a. The auth-event bus default publisher. In-process, ordered
 		//     dispatch: consumer handlers first, transport bridges last. A single-replica
 		//     app is complete with this alone; auth.AddEventCoordination() in the
 		//     configure callback turns on cross-replica delivery by registering the
-		//     bridge + inbound subscriber this publisher composes with. TryAdd —
+		//     sender + inbound receiver this publisher composes with. TryAdd —
 		//     an app-registered publisher wins.
 		builder.Services.TryAddSingleton<IAuthenticationEventPublisher, InProcessAuthenticationEventPublisher>();
 
@@ -151,7 +151,7 @@ public static class HostApplicationBuilderExtensions {
 		//    sentinel is the signal, so this needs no per-scheme marker.
 		CoordinationPostureValidator.Validate(builder.Services);
 
-		// 9a. Advisory (ADR-0021): the in-memory replay backend does not coordinate across instances — correct
+		// 9a. Advisory: the in-memory replay backend does not coordinate across instances — correct
 		//     for single-node / development, but a multi-instance production deployment silently loses replay
 		//     protection. The validator above proves only that *a* backend was chosen, not which, so surface a
 		//     non-blocking notice when the in-memory backend is selected outside Development. This is Information,
@@ -164,7 +164,7 @@ public static class HostApplicationBuilderExtensions {
 				"Coordination: the in-memory replay backend is selected outside Development. It does not " +
 				"coordinate replay across instances — correct for a single-node deployment, but a multi-instance " +
 				"deployment must register a distributed backend (Cirreum.Coordination.Redis via " +
-				"auth.ConfigureCoordination(c => c.UseRedis())). (ADR-0021.)");
+				"auth.ConfigureCoordination(c => c.UseRedis())).");
 		}
 
 		// 10. Boot-time Bearer-prefix uniqueness validation, after the configure callback and audience

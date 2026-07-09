@@ -15,7 +15,7 @@ using System.Text.Json;
 /// <para>
 /// Implements <see cref="IAuthenticationEventTransportBridge"/>, so the in-process
 /// publisher runs it after all consumer handlers (the wire only ever carries an event
-/// whose local effects have applied) and the inbound subscriber excludes it from
+/// whose local effects have applied) and the inbound receiver excludes it from
 /// dispatch (no publish-receive loop). It additionally refuses to forward while the
 /// current flow is inbound dispatch — the second line of defense against wire re-entry.
 /// </para>
@@ -25,7 +25,7 @@ using System.Text.Json;
 /// idempotent — not a loop.
 /// </para>
 /// </remarks>
-internal sealed class AuthenticationEventTransportBridge<TEvent>(
+internal sealed class AuthenticationEventSender<TEvent>(
 	AuthenticationEventRegistry registry,
 	ISignalBroadcaster broadcaster
 ) : IAuthenticationEventHandler<TEvent>, IAuthenticationEventTransportBridge

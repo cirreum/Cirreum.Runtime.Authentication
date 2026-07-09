@@ -22,7 +22,7 @@ internal static class AuthenticationEventHandlerInvoker {
 		_cache.GetOrAdd(eventType, static t => {
 			var serviceType = typeof(IAuthenticationEventHandler<>).MakeGenericType(t);
 			var handleMethod = serviceType.GetMethod(
-				nameof(IAuthenticationEventHandler<IAuthenticationEvent>.HandleAsync))!;
+				nameof(IAuthenticationEventHandler<>.HandleAsync))!;
 			return (serviceType, handleMethod);
 		});
 

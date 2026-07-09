@@ -6,11 +6,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
 
 /// <summary>
-/// Tests for <see cref="AuthenticationEventTransportBridge{TEvent}"/> — the outbound
-/// wire leg. Verifies the envelope round-trip, the channel constant, and the
-/// inbound-dispatch suppression (second line of defense against wire re-entry).
+/// Tests for <see cref="AuthenticationEventSender{TEvent}"/> — the outbound wire leg.
+/// Verifies the envelope round-trip, the channel constant, and the inbound-dispatch
+/// suppression (second line of defense against wire re-entry).
 /// </summary>
-public class AuthenticationEventTransportBridgeTests {
+public class AuthenticationEventSenderTests {
 
 	private static async Task<AuthenticationEventRegistry> CreateInitializedRegistryAsync() {
 		var registry = new AuthenticationEventRegistry(
@@ -31,13 +31,13 @@ public class AuthenticationEventTransportBridgeTests {
 				Arg.Do<ReadOnlyMemory<byte>>(p => published = p.ToArray()),
 				Arg.Any<CancellationToken>())
 			.Returns(ValueTask.CompletedTask);
-		var bridge = new AuthenticationEventTransportBridge<CredentialRevoked>(registry, broadcaster);
+		var sender = new AuthenticationEventSender<CredentialRevoked>(registry, broadcaster);
 		var evt = new CredentialRevoked("cred-9", "sub-9", DateTimeOffset.UtcNow) {
 			CredentialType = "apikey",
 			ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
 		};
 
-		await bridge.HandleAsync(evt);
+		await sender.HandleAsync(evt);
 
 		channel.Should().Be("cirreum:_auth-events");
 		published.Should().NotBeNull();
@@ -52,11 +52,11 @@ public class AuthenticationEventTransportBridgeTests {
 	public async Task HandleAsync_DuringInboundDispatch_RefusesToForward() {
 		var registry = await CreateInitializedRegistryAsync();
 		var broadcaster = Substitute.For<ISignalBroadcaster>();
-		var bridge = new AuthenticationEventTransportBridge<CredentialRevoked>(registry, broadcaster);
+		var sender = new AuthenticationEventSender<CredentialRevoked>(registry, broadcaster);
 
 		AuthenticationEventDispatchScope.EnterInboundDispatch();
 		try {
-			await bridge.HandleAsync(new CredentialRevoked("cred-1", "sub-1", DateTimeOffset.UtcNow));
+			await sender.HandleAsync(new CredentialRevoked("cred-1", "sub-1", DateTimeOffset.UtcNow));
 		} finally {
 			AuthenticationEventDispatchScope.ExitInboundDispatch();
 		}
@@ -69,9 +69,9 @@ public class AuthenticationEventTransportBridgeTests {
 	public async Task HandleAsync_UnversionedEventType_ThrowsPermanentConfigurationError() {
 		var registry = await CreateInitializedRegistryAsync();
 		var broadcaster = Substitute.For<ISignalBroadcaster>();
-		var bridge = new AuthenticationEventTransportBridge<UnversionedEvent>(registry, broadcaster);
+		var sender = new AuthenticationEventSender<UnversionedEvent>(registry, broadcaster);
 
-		var act = () => bridge.HandleAsync(new UnversionedEvent(DateTimeOffset.UtcNow)).AsTask();
+		var act = () => sender.HandleAsync(new UnversionedEvent(DateTimeOffset.UtcNow)).AsTask();
 
 		(await act.Should().ThrowAsync<InvalidOperationException>())
 			.Which.Message.Should().Contain("permanent configuration error");
@@ -81,10 +81,10 @@ public class AuthenticationEventTransportBridgeTests {
 	[Fact]
 	public async Task HandleAsync_IsRegisteredAsBridgeMarker() {
 		var registry = await CreateInitializedRegistryAsync();
-		var bridge = new AuthenticationEventTransportBridge<CredentialRevoked>(
+		var sender = new AuthenticationEventSender<CredentialRevoked>(
 			registry, Substitute.For<ISignalBroadcaster>());
 
-		bridge.Should().BeAssignableTo<IAuthenticationEventTransportBridge>();
+		sender.Should().BeAssignableTo<IAuthenticationEventTransportBridge>();
 		await Task.CompletedTask;
 	}
 
