@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-09
+
 ### Added
 
 - **Auth-event delivery (ADR-0025).** `AddAuthentication(...)` now registers the default `InProcessAuthenticationEventPublisher` (`TryAdd` — an app-registered publisher wins): synchronous, ordered dispatch — consumer handlers first (each isolated; a throwing handler is logged and the rest still run), transport bridges last, failures surfaced to the caller as an `AggregateException` so an admin command reports partial failure and can safely retry (handlers are idempotent). Dispatch keys on the event's **runtime** type, so publishing through a less-derived binding (e.g. iterating `IAuthenticationEvent` items) still reaches every concrete-typed handler. A single-replica app is complete with zero wiring.
