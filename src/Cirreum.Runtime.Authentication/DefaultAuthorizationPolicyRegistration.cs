@@ -2,9 +2,11 @@ namespace Cirreum.Authentication;
 
 using Cirreum.AuthenticationProvider;
 using Cirreum.Authorization;
+using Cirreum.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 /// <summary>
@@ -25,6 +27,12 @@ internal static class DefaultAuthorizationPolicyRegistration {
 				"configured authentication scheme names — the 'System' authorization policy admits only this " +
 				"scheme, so system-level access cannot be obtained through API keys or other transports.");
 		}
+
+		// Scheme-aware boundary classification: primary scheme → Global, other
+		// authenticated schemes → Tenant. TryAdd — an application-registered resolver
+		// (before AddAuthentication or in its composition callback) wins.
+		builder.Services.TryAddSingleton<IAuthenticationBoundaryResolver>(
+			new PrimarySchemeAuthenticationBoundaryResolver(primaryScheme));
 
 		var authorizationBuilder = builder.Services.AddAuthorizationBuilder();
 

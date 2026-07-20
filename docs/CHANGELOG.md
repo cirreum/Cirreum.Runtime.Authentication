@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scheme names when distinct credential carriers were presented together (ADR-0030).
   The caller-facing response is unchanged — diagnostics go to the server log only.
 
+### Fixed
+
+- **Scheme-aware authentication-boundary classification is restored (ADR-0032).**
+  The pre-reset framework registered a primary-scheme boundary resolver during
+  authorization composition; the Foundation Reset dropped it (along with every other
+  resolver registration), so all user states stamped `AuthenticationBoundary.None`
+  and grant providers gating on `Global`/`Tenant` could never pass.
+  `AddAuthentication()` now registers `PrimarySchemeAuthenticationBoundaryResolver`
+  where it reads `Cirreum:Authentication:PrimaryScheme`: primary scheme → `Global`,
+  other authenticated schemes → `Tenant`, unauthenticated → `None` (case-insensitive
+  scheme match). `TryAdd` — an application-registered resolver wins.
+
 ### Changed
 
 - **`JwtAudienceSchemeSelector` now builds its audience index from the

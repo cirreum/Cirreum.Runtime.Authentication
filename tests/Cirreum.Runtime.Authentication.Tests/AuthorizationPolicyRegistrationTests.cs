@@ -3,6 +3,7 @@ namespace Cirreum.Runtime.Authentication.Tests;
 using Cirreum.Authentication;
 using Cirreum.AuthenticationProvider;
 using Cirreum.Authorization;
+using Cirreum.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -73,6 +74,29 @@ public sealed class AuthorizationPolicyRegistrationTests {
 
 		standard.Should().NotBeNull();
 		standard!.AuthenticationSchemes.Should().Contain(AuthenticationSchemes.Dynamic);
+	}
+
+	[Fact]
+	public void Registers_the_primary_scheme_boundary_resolver() {
+		var builder = BuilderWith("Primary");
+
+		DefaultAuthorizationPolicyRegistration.Register(builder);
+
+		var provider = builder.Services.BuildServiceProvider();
+		provider.GetRequiredService<IAuthenticationBoundaryResolver>()
+			.Should().BeOfType<PrimarySchemeAuthenticationBoundaryResolver>();
+	}
+
+	[Fact]
+	public void An_application_registered_boundary_resolver_wins() {
+		var builder = BuilderWith("Primary");
+		var custom = Substitute.For<IAuthenticationBoundaryResolver>();
+		builder.Services.AddSingleton(custom);
+
+		DefaultAuthorizationPolicyRegistration.Register(builder);
+
+		var provider = builder.Services.BuildServiceProvider();
+		provider.GetRequiredService<IAuthenticationBoundaryResolver>().Should().BeSameAs(custom);
 	}
 
 }
