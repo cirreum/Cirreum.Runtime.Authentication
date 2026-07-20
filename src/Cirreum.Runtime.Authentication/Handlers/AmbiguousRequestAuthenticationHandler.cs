@@ -30,10 +30,28 @@ public sealed class AmbiguousRequestAuthenticationHandler(
 	/// <inheritdoc/>
 	protected override Task<AuthenticateResult> HandleAuthenticateAsync() {
 		if (this.Logger.IsEnabled(LogLevel.Warning)) {
-			this.Logger.LogWarning(
-				"Request rejected: unable to determine authentication scheme. " +
-				"This may be due to conflicting authentication headers or a credential " +
-				"that doesn't match any configured provider.");
+			// The selectors stash the specific rejection cause on Items; the log names
+			// it so the misconfiguration is diagnosable from this single line. The
+			// caller-facing failure message stays generic — no detail leaks outward.
+			if (this.Context.Items.TryGetValue(AmbiguousRequestItemKeys.UnmappedAudience, out var aud)
+				&& aud is string audience) {
+				this.Logger.LogWarning(
+					"Request rejected: a JWT was presented whose audience '{Audience}' matches " +
+					"no registered audience-based provider instance. Verify the token's 'aud' claim " +
+					"against the configured instance Audience values.",
+					audience);
+			} else if (this.Context.Items.TryGetValue(AmbiguousRequestItemKeys.ConflictingSchemes, out var schemes)
+				&& schemes is string[] conflicting) {
+				this.Logger.LogWarning(
+					"Request rejected: distinct credential carriers claimed multiple authentication " +
+					"schemes ({Schemes}) on one request — potential scheme shopping. Send exactly one credential.",
+					string.Join(", ", conflicting));
+			} else {
+				this.Logger.LogWarning(
+					"Request rejected: unable to determine authentication scheme. " +
+					"This may be due to conflicting authentication headers or a credential " +
+					"that doesn't match any configured provider.");
+			}
 		}
 		return Task.FromResult(AuthenticateResult.Fail(this.Options.FailureMessage));
 	}

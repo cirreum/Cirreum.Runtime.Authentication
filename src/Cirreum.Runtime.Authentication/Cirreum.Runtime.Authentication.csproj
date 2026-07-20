@@ -13,6 +13,14 @@
 		-->
 		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.1.2" />
 
+		<!--
+			Direct contracts dependency: the umbrella compiles against the Authentication
+			track's scheme-dispatch types (ISchemeSelector, AudienceSchemeRegistration,
+			AuthenticationSchemes), so the dependency is declared explicitly rather than
+			relied on transitively.
+		-->
+		<PackageReference Include="Cirreum.AuthenticationProvider" Version="1.3.0" />
+
 		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.0.6" />
 		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.0.5" />
 		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.0.5" />

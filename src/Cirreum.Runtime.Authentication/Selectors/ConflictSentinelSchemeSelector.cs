@@ -41,6 +41,9 @@ public sealed class ConflictSentinelSchemeSelector : ISchemeSelector {
 			return (false, null);
 		}
 
+		// TODO: should this be OrdinalIgnoreCase?
+		// The scheme names are registered case-insensitively, but the selector returns them as-is.
+		// If a scheme name is registered with different casing, it will be treated as distinct here.
 		var matchedSchemes = new HashSet<string>(StringComparer.Ordinal);
 
 		foreach (var selector in context.RequestServices.GetServices<ISchemeSelector>()) {
@@ -55,6 +58,10 @@ public sealed class ConflictSentinelSchemeSelector : ISchemeSelector {
 			if (matches && !string.IsNullOrEmpty(schemeName)) {
 				matchedSchemes.Add(schemeName);
 				if (matchedSchemes.Count >= 2) {
+					// Stash the colliding scheme names so the Ambiguous handler's
+					// rejection log names them (the handler owns the single Warning
+					// per rejected request).
+					context.Items[AmbiguousRequestItemKeys.ConflictingSchemes] = matchedSchemes.ToArray();
 					return (true, AuthenticationSchemes.Ambiguous);
 				}
 			}

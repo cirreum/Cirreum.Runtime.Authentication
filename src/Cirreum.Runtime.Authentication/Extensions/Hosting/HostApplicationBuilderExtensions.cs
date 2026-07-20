@@ -48,7 +48,7 @@ public static class HostApplicationBuilderExtensions {
 	/// <list type="number">
 	///   <item>Sets <c>ProviderRuntimeType</c> from the host's <c>DomainContext</c> runtime type.</item>
 	///   <item>Calls <c>services.AddAuthentication(...)</c> with the dynamic forward scheme as default.</item>
-	///   <item>Registers framework-shipped handlers (Anonymous, Ambiguous) + selectors (Conflict sentinel, Audience, Anonymous fallback) + the <see cref="IAudienceSchemeMap"/> default impl.</item>
+	///   <item>Registers framework-shipped handlers (Anonymous, Ambiguous) + selectors (Conflict sentinel, Audience, Anonymous fallback).</item>
 	///   <item>Registers the dynamic forward <c>PolicyScheme</c> with the <see cref="SchemeResolver.Resolve"/> callback.</item>
 	///   <item>Calls <c>services.AddAudienceRoleClaimsTransformation()</c> to wire the claims transformer.</item>
 	///   <item>Registers the default in-process <c>IAuthenticationEventPublisher</c> (replaceable via <c>TryAdd</c>); <c>auth.AddEventCoordination()</c> in the callback turns on cross-replica delivery.</item>
@@ -141,6 +141,12 @@ public static class HostApplicationBuilderExtensions {
 		//    (and any app-stashed seam) and bails appropriately when missing.
 		RegisterFrameworkShippedProviders(builder, authBuilder);
 
+		// 7a. Validate the complete audience → scheme registration set contributed by the
+		//     configure callback and the audience registrars. One audience claimed by two
+		//     different schemes fails composition with every collision reported; a clean
+		//     set is logged so the live routing table is visible at startup.
+		AudienceRegistrationValidator.Validate(builder.Services);
+
 		// 8. Predefined Cirreum authorization policies (System + Standard family). Returns the
 		//    AuthorizationBuilder so the app can chain additional .AddPolicy(...) calls.
 		var authorizationBuilder = DefaultAuthorizationPolicyRegistration.Register(builder);
@@ -192,10 +198,6 @@ public static class HostApplicationBuilderExtensions {
 	}
 
 	private static void RegisterFrameworkShippedSelectors(IServiceCollection services) {
-
-		// Audience scheme map — single shared instance, written to by audience-based
-		// registrars during their per-instance registration.
-		services.TryAddSingleton<IAudienceSchemeMap, DefaultAudienceSchemeMap>();
 
 		// Conflict sentinel — runs first (Priority=0), detects cross-carrier conflicts.
 		services.TryAddSingleton<ConflictSentinelSchemeSelector>();

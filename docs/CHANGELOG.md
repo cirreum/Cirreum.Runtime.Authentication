@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Composition-close audience validation: one audience claimed by two different schemes
+  now fails `AddAuthentication()` with every collision reported (audience, both scheme
+  names, both contributing providers) instead of surfacing as request-time 401s. A
+  clean set logs the live audience → scheme routing table at startup via the deferred
+  logger, so audience dispatch is visible and diagnosable at boot (ADR-0030/0031).
+- The `Cirreum.Ambiguous` rejection Warning now names its cause: the unmapped JWT
+  `aud` value when a genuine token matched no registered audience, or the colliding
+  scheme names when distinct credential carriers were presented together (ADR-0030).
+  The caller-facing response is unchanged — diagnostics go to the server log only.
+
+### Changed
+
+- **`JwtAudienceSchemeSelector` now builds its audience index from the
+  `AudienceSchemeRegistration` set** contributed by audience-based registrars,
+  aggregated once at construction into an immutable case-insensitive index
+  (ADR-0031). This fixes multi-provider audience dispatch: previously each audience
+  instance registration created a fresh scheme map and last-wins DI resolution kept
+  only the final one, so in any composition with more than one audience instance
+  every earlier audience silently 401'd as `Cirreum.Ambiguous`. The umbrella no
+  longer registers an audience map service.
+
 ## [1.1.1] - 2026-07-19
 
 ### Updated
