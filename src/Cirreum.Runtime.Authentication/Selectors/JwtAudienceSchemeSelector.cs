@@ -76,7 +76,11 @@ public sealed class JwtAudienceSchemeSelector(
 		if (endpoint?.Metadata.GetMetadata<IAllowAnonymous>() is not null) {
 			return (true, AuthenticationSchemes.Anonymous);
 		}
+
+		// Ambiguous scheme is a special "fail closed" scheme that always rejects the request
+		// with a 401 Unauthorized, so the client knows the JWT was valid but not accepted.
 		return (true, AuthenticationSchemes.Ambiguous);
+
 	}
 
 	private static bool IsJwtShape(string value) {
@@ -119,8 +123,12 @@ public sealed class JwtAudienceSchemeSelector(
 	private static byte[] Base64UrlDecode(string input) {
 		var padded = input.Replace('-', '+').Replace('_', '/');
 		switch (padded.Length % 4) {
-			case 2: padded += "=="; break;
-			case 3: padded += "="; break;
+			case 2:
+				padded += "==";
+				break;
+			case 3:
+				padded += "=";
+				break;
 		}
 		return Convert.FromBase64String(padded);
 	}
