@@ -11,7 +11,7 @@
 			Runtime composition engine + the six scheme packages. Referenced as packages so apps
 			install just this umbrella; the schemes flow in transitively.
 		-->
-		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.1.3" />
+		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="1.1.4" />
 
 		<!--
 			Direct contracts dependencies: the umbrella compiles against the Authentication
