@@ -14,12 +14,12 @@
 		-->
 		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="2.0.0" />
 
-		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="1.0.8" />
-		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.0.7" />
-		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.0.7" />
-		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.0.7" />
-		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.0.7" />
-		<PackageReference Include="Cirreum.Authentication.External" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="2.0.0" />
+		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.0.8" />
+		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.0.8" />
+		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.0.8" />
+		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.0.8" />
+		<PackageReference Include="Cirreum.Authentication.External" Version="2.0.0" />
 
 		<!-- Config-time advisory logging (the in-memory-coordination-outside-Development notice). -->
 		<PackageReference Include="Cirreum.Logging.Deferred" Version="1.0.116" />
