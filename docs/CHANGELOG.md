@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Scheme selection is now observable.** `SchemeResolver.Resolve` records
+  `cirreum.authn.selections` — a counter tagged with the resolved scheme and the
+  `ISchemeSelector` type that claimed the request. Which scheme a request resolved to, and
+  how the resolved-scheme distribution looks across a multi-IdP deployment, previously had no
+  telemetry at all; since `IdentityProviderType` was removed, the authenticated scheme is the
+  single authoritative answer to "which identity provider handled this request".
+
+  Instrumented at the resolver rather than inside each selector: this is the one site every
+  `ISchemeSelector` is dispatched through, so a single call covers the whole registered set —
+  framework-shipped and app-supplied alike — and adding a scheme never leaves a hole in the
+  distribution. It also keeps the six Infrastructure scheme packages untouched.
+
+  A `selector` tag value of `none` means nothing claimed the request and the resolver fell
+  through to its default, distinguishing a genuine Anonymous selection from a misconfigured
+  selector set — previously indistinguishable. Nothing needs subscribing; `AddCirreum()`
+  already registers the `Cirreum.Authentication` meter.
+
+### Updated
+
+- Re-pinned to `Cirreum.Runtime.AuthenticationProvider` 2.0.0, which renames
+  `AuthenticationProviderDiagnostics` to `AuthenticationTelemetry` and publishes the
+  `RecordSchemeSelection` entry point this release calls.
+
 ## [1.2.2] - 2026-07-24
 
 ### Updated

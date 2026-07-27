@@ -25,6 +25,12 @@ using Microsoft.Extensions.DependencyInjection;
 /// resolver dispatcher) read the real scheme rather than the dynamic forward
 /// scheme's policy name.
 /// </para>
+/// <para>
+/// Selection is instrumented here rather than inside each <see cref="ISchemeSelector"/>:
+/// this is the single site every selector is dispatched through, so one call covers the
+/// whole registered set — framework-shipped schemes and app-supplied selectors alike —
+/// and the resolved-scheme distribution stays complete when a new scheme is added.
+/// </para>
 /// </remarks>
 public static class SchemeResolver {
 
@@ -40,11 +46,13 @@ public static class SchemeResolver {
 
 		var selectors = context.RequestServices.GetServices<ISchemeSelector>();
 		var resolved = AuthenticationSchemes.Anonymous;
+		var claimedBy = AuthenticationTelemetry.SelectorNone;
 
 		foreach (var selector in selectors.OrderBy(s => s.Priority)) {
 			var (matches, schemeName) = selector.TrySelect(context);
 			if (matches && !string.IsNullOrWhiteSpace(schemeName)) {
 				resolved = schemeName;
+				claimedBy = selector.GetType().Name;
 				break;
 			}
 		}
@@ -53,6 +61,12 @@ public static class SchemeResolver {
 		// scheme, not the dynamic forward scheme's name. AuthenticationContextKeys
 		// shares this file's namespace — it's reached directly.
 		context.Items[AuthenticationContextKeys.AuthenticatedScheme] = resolved;
+
+		// Records both halves of the selection question: which scheme won, and whether
+		// anything claimed the request at all. A "none" selector means the Anonymous
+		// fallback selector is not registered — the resolved scheme is a default, not a
+		// decision.
+		AuthenticationTelemetry.RecordSchemeSelection(resolved, claimedBy);
 
 		return resolved;
 	}
