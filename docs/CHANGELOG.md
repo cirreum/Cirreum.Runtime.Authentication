@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-07-30
+
 ### Updated
 
 - Updated NuGet packages — picks up the `Cirreum.Domain` 3.0.0 authorization-enforcement wave
