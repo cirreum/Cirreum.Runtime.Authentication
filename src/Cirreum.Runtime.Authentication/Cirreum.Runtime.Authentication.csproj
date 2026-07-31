@@ -18,7 +18,7 @@
 		<PackageReference Include="Cirreum.Authentication.SignedRequest" Version="1.0.9" />
 		<PackageReference Include="Cirreum.Authentication.SessionTicket" Version="1.0.9" />
 		<PackageReference Include="Cirreum.Authentication.Oidc" Version="1.0.9" />
-		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.0.9" />
+		<PackageReference Include="Cirreum.Authentication.Entra" Version="1.0.10" />
 		<PackageReference Include="Cirreum.Authentication.External" Version="2.0.1" />
 
 		<!-- Config-time advisory logging (the in-memory-coordination-outside-Development notice). -->
@@ -30,7 +30,7 @@
 			code" pattern — so auth.ConfigureCoordination(c => c.UseRedis()) needs no extra
 			package. Startup supplies ISystemInitializer for the registry/subscriber bootstrap.
 		-->
-		<PackageReference Include="Cirreum.Coordination.Redis" Version="1.1.1" />
+		<PackageReference Include="Cirreum.Coordination.Redis" Version="1.1.2" />
 		<PackageReference Include="Cirreum.Startup" Version="1.0.122" />
 
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
