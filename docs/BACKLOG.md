@@ -52,3 +52,18 @@ no cross-replica auth delivery, so folding the backend choice into the auth-even
 misstate what owns it. The overload is a convenience for the overlap, not a merge: its
 documentation must say plainly that it also selects the shared backend, so an app calling it
 does not later wonder why its throttle changed behaviour.
+
+The implementation is a delegation, not a reimplementation — `ConfigureCoordination` lives in
+`Cirreum.AuthenticationProvider` (Core), which this package sits above:
+
+```csharp
+public static IAuthenticationBuilder AddEventCoordination(
+    this IAuthenticationBuilder builder,
+    Action<CoordinationBuilder> configure) =>
+    builder.ConfigureCoordination(configure).AddEventCoordination();
+```
+
+**Pairs with the scope-default de-duplication** filed against `Cirreum.AuthenticationProvider`.
+`AddEventCoordination` currently repeats that package's `CoordinationScope` `TryAddSingleton`
+block verbatim — same lambda, same error message. Take the shared helper when it lands rather
+than leaving a third copy behind.
