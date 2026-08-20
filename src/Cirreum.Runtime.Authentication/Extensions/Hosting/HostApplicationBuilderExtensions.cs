@@ -204,7 +204,7 @@ public static class HostApplicationBuilderExtensions {
 		return authorizationBuilder;
 	}
 
-	private static void RegisterFrameworkShippedHandlers(IAuthenticationBuilder builder) {
+	private static void RegisterFrameworkShippedHandlers(CirreumAuthenticationBuilder builder) {
 
 		// Both authenticate nobody — Anonymous mints an unauthenticated principal and
 		// Ambiguous rejects a request carrying conflicting credentials — so neither has a
