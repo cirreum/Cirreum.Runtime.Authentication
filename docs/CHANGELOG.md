@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -8,6 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
+
+### Added
+
+- **The scheme-declaration map is composed and registered** — the switch that turns the
+  attribute-authority model on. `AddAuthentication()` publishes an `ISchemeClaimAuthorityMap`
+  built from every `SchemeClaimAuthorityRegistration` the providers contributed, so the
+  readers already shipped across the framework — subject-kind resolution in user-state
+  assembly, the role-claims transformer's authority branch, and the app-name fallback's
+  machine gate — resolve real declarations instead of `Undeclared`. Lookups are ordinal,
+  matching how ASP.NET Core keys its own scheme registry.
+- **`CirreumAuthenticationBuilder` implements `DeclareScheme` and `AddScheme`** — the funnel's
+  filing site. `AddScheme<TOptions, THandler>` registers a scheme with ASP.NET and declares it
+  in one call; `DeclareScheme` declares a scheme registered through another extension
+  (`AddJwtBearer`, `AddOpenIdConnect`, `AddCookie`). Both file the declaration as a service
+  descriptor, so the complete set is readable at composition close without building a
+  container.
+- **Composition-close declaration validation.** A scheme declared two different ways fails the
+  host with every conflict reported. Identical duplicate declarations collapse silently — a
+  platform-default scheme is commonly declared by more than one provider, and two providers
+  stating the same thing is agreement, not conflict. A clean set is logged so the live
+  declaration table is visible at startup, alongside the audience routing table.
+- **The framework's own schemes are declared** `SubjectKind.Unknown`: Anonymous and Ambiguous
+  authenticate no subject (one mints an unauthenticated principal, the other rejects a request
+  carrying conflicting credentials), and the dynamic forward scheme delegates to whichever
+  scheme does — that scheme's declaration governs. Declared rather than left undeclared so
+  they appear in the table an operator reads.
+
+### Changed
+
+- The Cirreum authentication builder is constructed immediately after
+  `services.AddAuthentication(...)` rather than at the configure callback, so the framework's
+  own schemes are declared through the same funnel every provider uses. The framework-shipped
+  registrars now receive `IAuthenticationBuilder`.
+
+### Updated
+
+- Updated NuGet packages (`Cirreum.Runtime.AuthenticationProvider` 2.1.0 and the six
+  scheme-provider Minors — the readers this release supplies declarations to).
 
 ## [1.3.4] - 2026-08-04
 

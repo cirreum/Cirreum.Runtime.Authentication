@@ -1,4 +1,4 @@
-# Cirreum Runtime Authentication
+﻿# Cirreum Runtime Authentication
 
 [![NuGet Version](https://img.shields.io/nuget/v/Cirreum.Runtime.Authentication.svg?style=flat-square&labelColor=1F1F1F&color=003D8F)](https://www.nuget.org/packages/Cirreum.Runtime.Authentication/)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Cirreum.Runtime.Authentication.svg?style=flat-square&labelColor=1F1F1F&color=003D8F)](https://www.nuget.org/packages/Cirreum.Runtime.Authentication/)
@@ -65,6 +65,33 @@ await app.RunAsync();
 
 See each scheme's package for its configuration shape and security model — e.g. [`Cirreum.Authentication.ApiKey`](https://www.nuget.org/packages/Cirreum.Authentication.ApiKey/), [`Cirreum.Authentication.Oidc`](https://www.nuget.org/packages/Cirreum.Authentication.Oidc/), [`Cirreum.Authentication.SignedRequest`](https://www.nuget.org/packages/Cirreum.Authentication.SignedRequest/), [`Cirreum.Authentication.SessionTicket`](https://www.nuget.org/packages/Cirreum.Authentication.SessionTicket/).
 
+## Declaring attribute authority
+
+The identity provider is always the authority for **authentication**. It is not automatically the authority for **attributes** — profile and roles. That second question is the application's, it is answered per scheme, and one application commonly answers it several ways at once.
+
+Framework-shipped schemes declare themselves, so most applications state nothing. A scheme composed through another ASP.NET extension, or one whose authority differs from its provider's default, declares it explicitly:
+
+```csharp
+builder.AddAuthentication(auth => auth
+    // A customer IdP that authenticates people, while the app's own store owns their roles:
+    // roles are then read per request, so revocation takes effect immediately.
+    .DeclareScheme("descope", SubjectKind.Human, roles: ClaimAuthority.ApplicationStore));
+```
+
+`AddScheme<TOptions, THandler>(...)` registers a scheme with ASP.NET and declares it in one call; `DeclareScheme(...)` declares a scheme registered elsewhere (`AddJwtBearer`, `AddOpenIdConnect`, `AddCookie`).
+
+What a declaration decides:
+
+| Declaration | Effect |
+|---|---|
+| `SubjectKind.Human` | the caller is known to be a person; an application name is never substituted for their name |
+| `SubjectKind.Machine` | roles come from the caller's credential record, and the app-name header may name it in logs |
+| `Roles: ApplicationStore` | roles are read from the application store per request |
+| `Roles: IdentityProvider` | the roles the token carries stand |
+| *(undeclared)* | the behaviour that predates declarations — a registered `IApplicationUserResolver` means the store owns roles |
+
+Declaring nothing is legal and keeps existing behaviour. Declaring one scheme two different ways fails composition; two providers declaring it the same way is agreement and collapses silently. The composed table is logged at startup beside the audience routing table.
+
 ## How requests are dispatched
 
 `AddAuthentication` makes a **dynamic forward scheme** the default. On each request a chain of selectors decides which concrete scheme handles it:
@@ -97,7 +124,8 @@ To publish your own events, inject `IAuthenticationEventPublisher` and publish o
 ## What this package contains
 
 - **`builder.AddAuthentication(configure?, authentication?)`** — the one entry point; composes the schemes, selectors, handlers, the dynamic forward scheme, the claims transformer, and the default auth-event publisher, then runs the boot-time validator. Returns a `CirreumAuthenticationBuilder`.
-- The framework-shipped **selectors** (conflict sentinel, audience, anonymous) and **handlers** (anonymous, ambiguous) and the **`CirreumAuthenticationBuilder`** the scheme packages extend (`AddApiKey`, `AddSignedRequest<T>`, `AddSessionTicket`, `AddExternalTenantResolver<T>`, `AddApplicationUserResolver<T>`).
+- The framework-shipped **selectors** (conflict sentinel, audience, anonymous) and **handlers** (anonymous, ambiguous) and the **`CirreumAuthenticationBuilder`** the scheme packages extend (`AddApiKey`, `AddSignedRequest<T>`, `AddSessionTicket`, `AddExternalTenantResolver<T>`, `AddApplicationUserResolver<T>`), which also carries the declaration funnel (`AddScheme`, `DeclareScheme`).
+- The composed **`ISchemeClaimAuthorityMap`** every attribute-authority reader resolves — subject-kind resolution in user-state assembly, the role-claims transformer's authority branch, the app-name fallback's machine gate — plus the composition-close validation that rejects a scheme declared two different ways.
 - The **auth-event delivery machinery** — the in-process `IAuthenticationEventPublisher` and, behind `auth.AddEventCoordination()`, the versioned event registry, the outbound transport bridge, and the inbound subscriber over the coordination broadcast channel.
 
 Composition is driven by `Cirreum.Runtime.AuthenticationProvider`, which flows in transitively.

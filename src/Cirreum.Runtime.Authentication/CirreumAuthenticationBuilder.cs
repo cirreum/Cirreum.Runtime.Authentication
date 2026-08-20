@@ -1,7 +1,8 @@
-namespace Cirreum.Authentication;
+﻿namespace Cirreum.Authentication;
 
 using Cirreum;
 using Cirreum.AuthenticationProvider;
+using Cirreum.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,6 +46,43 @@ public sealed class CirreumAuthenticationBuilder(
 	/// <inheritdoc/>
 	public IConfiguration Configuration { get; } = configuration
 		?? throw new ArgumentNullException(nameof(configuration));
+
+	/// <inheritdoc/>
+	public IAuthenticationBuilder DeclareScheme(
+		string scheme,
+		SubjectKind subjectKind,
+		ClaimAuthority profile = ClaimAuthority.Unspecified,
+		ClaimAuthority roles = ClaimAuthority.Unspecified) {
+
+		ArgumentException.ThrowIfNullOrWhiteSpace(scheme);
+
+		// Filed as an instance descriptor so the complete set is readable from the service
+		// collection at composition close, before any container is built — the same shape
+		// the audience and bearer-prefix registrations use.
+		this.Services.AddSingleton(
+			new SchemeClaimAuthorityRegistration(scheme, subjectKind, profile, roles));
+
+		return this;
+	}
+
+	/// <inheritdoc/>
+	public IAuthenticationBuilder AddScheme<TOptions, THandler>(
+		string scheme,
+		SubjectKind subjectKind,
+		ClaimAuthority profile = ClaimAuthority.Unspecified,
+		ClaimAuthority roles = ClaimAuthority.Unspecified,
+		Action<TOptions>? configureOptions = null)
+		where TOptions : AuthenticationSchemeOptions, new()
+		where THandler : AuthenticationHandler<TOptions> {
+
+		ArgumentException.ThrowIfNullOrWhiteSpace(scheme);
+
+		this.AuthBuilder.AddScheme<TOptions, THandler>(
+			scheme,
+			configureOptions ?? (static _ => { }));
+
+		return this.DeclareScheme(scheme, subjectKind, profile, roles);
+	}
 
 	/// <summary>
 	/// Registers an <see cref="IApplicationUserResolver"/> implementation. May be

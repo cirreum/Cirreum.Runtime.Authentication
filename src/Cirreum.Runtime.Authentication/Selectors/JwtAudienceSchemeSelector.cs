@@ -38,25 +38,23 @@ using System.Text.Json;
 ///   <item>Audience is unregistered on a protected endpoint: route to Ambiguous (fail closed — genuine JWT, no owner). The offending audience value is stashed on <c>HttpContext.Items</c> so the Ambiguous handler's rejection log names it.</item>
 /// </list>
 /// </remarks>
-public sealed class JwtAudienceSchemeSelector : ISchemeSelector {
+/// <remarks>
+/// Creates the selector, building the audience index from the registration set
+/// contributed by audience-based registrars during composition.
+/// </remarks>
+/// <param name="registrations">The registered audience → scheme contributions.</param>
+public sealed class JwtAudienceSchemeSelector(
+	IEnumerable<AudienceSchemeRegistration> registrations
+) : ISchemeSelector {
 
 	private const string BearerPrefixToken = "Bearer ";
 
-	private readonly FrozenDictionary<string, string> _schemesByAudience;
-
-	/// <summary>
-	/// Creates the selector, building the audience index from the registration set
-	/// contributed by audience-based registrars during composition.
-	/// </summary>
-	/// <param name="registrations">The registered audience → scheme contributions.</param>
-	public JwtAudienceSchemeSelector(IEnumerable<AudienceSchemeRegistration> registrations) {
-		_schemesByAudience = registrations
+	private readonly FrozenDictionary<string, string> _schemesByAudience = registrations
 			.GroupBy(r => r.Audience, StringComparer.OrdinalIgnoreCase)
 			.ToFrozenDictionary(
 				group => group.Key,
 				group => group.First().Scheme,
 				StringComparer.OrdinalIgnoreCase);
-	}
 
 	/// <inheritdoc/>
 	public int Priority => SchemeSelectorPriority.Audience;
@@ -142,8 +140,12 @@ public sealed class JwtAudienceSchemeSelector : ISchemeSelector {
 	private static byte[] Base64UrlDecode(string input) {
 		var padded = input.Replace('-', '+').Replace('_', '/');
 		switch (padded.Length % 4) {
-			case 2: padded += "=="; break;
-			case 3: padded += "="; break;
+			case 2:
+				padded += "==";
+				break;
+			case 3:
+				padded += "=";
+				break;
 		}
 		return Convert.FromBase64String(padded);
 	}

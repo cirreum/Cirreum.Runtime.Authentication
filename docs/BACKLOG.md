@@ -19,6 +19,39 @@ upgrade, a coordinated multi-repo rollout).
 
 ## Queued
 
+### Antiforgery advisory driven by the cookie-scheme declaration
+
+**SemVer:** Minor
+**Trigger:** the attribute-authority rung 4 (scheme-declaration map + close-validation) has shipped in this package.
+**Noted:** 2026-08-19
+
+The platform-default cookie scheme is the framework's only *ambient* credential — the one the
+browser attaches without the page's cooperation, and therefore the only scheme for which CSRF
+exists. The framework composes it (the Entra/Oidc WebApp paths declare it once per host) but
+says nothing about antiforgery anywhere. Once the declaration map ships, whether a host needs
+antiforgery stops being guesswork: the composition root holds the fact.
+
+**Premise updated 2026-08-19:** `Cirreum.Runtime.Server` 1.3.0 shipped posture-driven
+antiforgery — `DomainRuntimeType.WebApp` registers the services and `UseDefaultMiddleware()`
+runs `UseAntiforgery()` after authorization, with `MapDefaultAntiforgeryToken()` for browser
+clients. The protection itself is no longer this item's job. What remains for the umbrella is
+the **mismatch advisory** — the case the runtime type cannot see from where it sits:
+
+- **Cookie scheme declared while the host's declared posture is not `WebApp`** → a Web API
+  host composed the WebApp cookie flows; its cookie-authenticated endpoints have no
+  antiforgery and `DisableAntiforgery` reasoning ("no ambient credential") is invalid there.
+  Detection keys on the cookie scheme's declaration record — the same record that serves as
+  the once-per-host guard.
+- **Consider the inverse** (`WebApp` posture, no cookie scheme declared → antiforgery is dead
+  weight), but decide it deliberately — it may be legitimate mid-composition noise.
+
+Emit via config-time `IDeferredLogger`, the same pattern as the
+in-memory-coordination-outside-Development notice. Design question to settle: whether
+"ambient credential" deserves its own axis on the declaration record someday, or whether
+keying on the known cookie scheme name is enough (recommendation: the latter until a second
+ambient scheme exists). Deliberately kept out of rung 4 itself — the wave's governing
+articulation has no antiforgery concept, and rung 4's contents map to its R1–R10.
+
 ### `AddEventCoordination` overload that also selects the backend
 
 **SemVer:** Minor

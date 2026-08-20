@@ -1,4 +1,4 @@
-namespace Microsoft.Extensions.Hosting;
+﻿namespace Microsoft.Extensions.Hosting;
 
 using Cirreum;
 using Cirreum.Authentication;
@@ -8,6 +8,7 @@ using Cirreum.AuthenticationProvider;
 using Cirreum.Coordination;
 using Cirreum.Logging.Deferred;
 using Cirreum.Providers;
+using Cirreum.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,17 +106,26 @@ public static class HostApplicationBuilderExtensions {
 			authentication?.Invoke(options);
 		});
 
+		// 2a. The Cirreum builder — the single filing site for scheme declarations. Built here
+		//     rather than at the configure callback so the framework's own schemes are declared
+		//     through the same funnel every provider uses.
+		var cirreumBuilder = new CirreumAuthenticationBuilder(
+			builder.Services, authBuilder, builder.Configuration);
+
 		// 3. Framework-shipped handlers + selectors + audience map.
-		RegisterFrameworkShippedHandlers(authBuilder);
+		RegisterFrameworkShippedHandlers(cirreumBuilder);
 		RegisterFrameworkShippedSelectors(builder.Services);
 
 		// 4. Dynamic forward PolicyScheme — dispatches to the right scheme per request.
+		//    Declared Unknown: it authenticates nobody itself, it forwards to the scheme that
+		//    does, and that scheme's own declaration governs the subject.
 		authBuilder.AddPolicyScheme(
 			AuthenticationSchemes.Dynamic,
 			"Cirreum dynamic forward scheme",
 			options => {
 				options.ForwardDefaultSelector = SchemeResolver.Resolve;
 			});
+		cirreumBuilder.DeclareScheme(AuthenticationSchemes.Dynamic, SubjectKind.Unknown);
 
 		// 5. Claims transformer — runs after ASP.NET authentication completes,
 		//    dispatches to a per-scheme IApplicationUserResolver registered by the app.
@@ -133,19 +143,25 @@ public static class HostApplicationBuilderExtensions {
 		//    application-user-resolver registrations — runs BEFORE audience auto-registration so any
 		//    app-stashed seam (e.g. the Entra downstream-API callback, stashed on the service collection
 		//    by auth.EnableDownstreamApi(...)) is in place when the audience registrars read it.
-		var cirreumBuilder = new CirreumAuthenticationBuilder(
-			builder.Services, authBuilder, builder.Configuration);
 		configure?.Invoke(cirreumBuilder);
 
 		// 7. Compose every framework-shipped audience registrar. Each reads its configuration section
 		//    (and any app-stashed seam) and bails appropriately when missing.
-		RegisterFrameworkShippedProviders(builder, authBuilder);
+		RegisterFrameworkShippedProviders(builder, cirreumBuilder);
 
 		// 7a. Validate the complete audience → scheme registration set contributed by the
 		//     configure callback and the audience registrars. One audience claimed by two
 		//     different schemes fails composition with every collision reported; a clean
 		//     set is logged so the live routing table is visible at startup.
 		AudienceRegistrationValidator.Validate(builder.Services);
+
+		// 7b. Validate the complete scheme-declaration set and publish it as the lookup every
+		//     reader resolves. Identical duplicate declarations collapse (a platform-default
+		//     scheme is commonly declared by more than one provider); a scheme declared two
+		//     different ways fails composition. An undeclared scheme stays legal and resolves
+		//     Undeclared, which is what preserves the behaviour of a host that declares nothing.
+		SchemeDeclarationValidator.Validate(builder.Services);
+		builder.Services.TryAddSingleton<ISchemeClaimAuthorityMap, SchemeClaimAuthorityMap>();
 
 		// 8. Predefined Cirreum authorization policies (System + Standard family). Returns the
 		//    AuthorizationBuilder so the app can chain additional .AddPolicy(...) calls.
@@ -188,13 +204,17 @@ public static class HostApplicationBuilderExtensions {
 		return authorizationBuilder;
 	}
 
-	private static void RegisterFrameworkShippedHandlers(AuthenticationBuilder authBuilder) {
+	private static void RegisterFrameworkShippedHandlers(IAuthenticationBuilder builder) {
 
-		authBuilder.AddScheme<AuthenticationSchemeOptions, AnonymousAuthenticationHandler>(
-			AuthenticationSchemes.Anonymous, _ => { });
+		// Both authenticate nobody — Anonymous mints an unauthenticated principal and
+		// Ambiguous rejects a request carrying conflicting credentials — so neither has a
+		// subject to describe. Declared Unknown rather than left undeclared so the framework's
+		// own schemes appear in the declaration table an operator reads.
+		builder.AddScheme<AuthenticationSchemeOptions, AnonymousAuthenticationHandler>(
+			AuthenticationSchemes.Anonymous, SubjectKind.Unknown);
 
-		authBuilder.AddScheme<AmbiguousRequestAuthenticationOptions, AmbiguousRequestAuthenticationHandler>(
-			AuthenticationSchemes.Ambiguous, _ => { });
+		builder.AddScheme<AmbiguousRequestAuthenticationOptions, AmbiguousRequestAuthenticationHandler>(
+			AuthenticationSchemes.Ambiguous, SubjectKind.Unknown);
 	}
 
 	private static void RegisterFrameworkShippedSelectors(IServiceCollection services) {
@@ -218,7 +238,7 @@ public static class HostApplicationBuilderExtensions {
 
 	private static void RegisterFrameworkShippedProviders(
 		IHostApplicationBuilder builder,
-		AuthenticationBuilder authBuilder) {
+		IAuthenticationBuilder authBuilder) {
 
 		// ApiKey, SignedRequest, and SessionTicket are composed by the app via
 		// auth.AddApiKey(...) / auth.AddSignedRequest<T>(...) / auth.AddSessionTicket(...)
