@@ -1,4 +1,4 @@
-namespace Cirreum.Authentication;
+﻿namespace Cirreum.Authentication;
 
 using Cirreum.Authentication.Events;
 using Cirreum.AuthenticationProvider;
@@ -96,6 +96,36 @@ public static class AuthenticationEventCoordinationExtensions {
 			typeof(AuthenticationEventSender<>)));
 
 		return builder;
+	}
+
+	/// <summary>
+	/// Turns on cross-replica auth-event delivery and selects the coordination backend in one
+	/// call.
+	/// </summary>
+	/// <param name="builder">The authentication builder.</param>
+	/// <param name="configure">A delegate that selects and configures the coordination backend.</param>
+	/// <returns>The builder, for chaining.</returns>
+	/// <remarks>
+	/// <para>
+	/// Equivalent to <c>ConfigureCoordination(configure).AddEventCoordination()</c>, for the
+	/// common case where an application turns on auth-event delivery and picks its backend
+	/// together.
+	/// </para>
+	/// <para>
+	/// The backend selected here is the application's shared coordination backend: it also
+	/// serves replay protection, request throttling, and signal broadcast for any track that
+	/// consumes them. An application that needs a distributed backend without cross-replica
+	/// auth delivery selects it through <c>ConfigureCoordination</c> alone.
+	/// </para>
+	/// </remarks>
+	public static IAuthenticationBuilder AddEventCoordination(
+		this IAuthenticationBuilder builder,
+		Action<CoordinationBuilder> configure) {
+
+		ArgumentNullException.ThrowIfNull(builder);
+		ArgumentNullException.ThrowIfNull(configure);
+
+		return builder.ConfigureCoordination(configure).AddEventCoordination();
 	}
 
 }

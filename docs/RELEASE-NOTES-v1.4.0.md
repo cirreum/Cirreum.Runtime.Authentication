@@ -1,4 +1,4 @@
-# Cirreum.Runtime.Authentication 1.4.0 — the declaration becomes the answer
+﻿# Cirreum.Runtime.Authentication 1.4.0 — the declaration becomes the answer
 
 ## Why this release exists
 
@@ -45,6 +45,21 @@ so the live declaration table is visible rather than latent.
 scheme are declared `SubjectKind.Unknown` — none authenticates a subject; the dynamic scheme
 forwards to whichever scheme does, and that scheme's declaration governs. Declared rather than
 left undeclared so they appear in the table an operator reads.
+
+## Also in this release
+
+**`AddEventCoordination(configure)`** — an overload that turns on cross-replica auth-event
+delivery and selects the coordination backend in one call:
+
+```csharp
+auth.AddEventCoordination(c => c.UseRedisFromConfiguration(builder));
+```
+
+`ConfigureCoordination` stays a standalone verb rather than being folded away. It selects the
+application's *shared* coordination backend, which also serves replay protection, request
+throttling, and signal broadcast — an application can legitimately need a distributed backend
+for those while wanting no cross-replica auth delivery at all. The overload is a convenience
+for the overlap, not a merge.
 
 ## Compatibility
 

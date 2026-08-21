@@ -35,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scheme does — that scheme's declaration governs. Declared rather than left undeclared so
   they appear in the table an operator reads.
 
+- **`AddEventCoordination(configure)`** — an overload that turns on cross-replica auth-event
+  delivery and selects the coordination backend in one call, for the common case where an
+  application does both together. `ConfigureCoordination` remains a standalone verb: it selects
+  the application's *shared* backend, which also serves replay protection, request throttling,
+  and signal broadcast, so an application that needs a distributed backend without cross-replica
+  auth delivery still reaches for it alone.
+
 ### Changed
 
 - The Cirreum authentication builder is constructed immediately after
