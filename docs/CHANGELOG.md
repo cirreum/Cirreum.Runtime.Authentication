@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-26
+
 ### Fixed
 
 - **Removed the direct `Cirreum.Contracts` reference** added in 1.5.0. The package reaches
