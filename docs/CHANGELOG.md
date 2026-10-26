@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Removed the direct `Cirreum.Contracts` reference** added in 1.5.0. The package reaches
+  Contracts through `Cirreum.Runtime.AuthenticationProvider`; the direct pin was a build-order
+  shortcut and duplicated a floor the spine owns. No behaviour change.
+
 ## [1.5.0] - 2026-10-26
 
 ### Changed

@@ -12,7 +12,6 @@
 			Runtime composition engine + the six scheme packages. Referenced as packages so apps
 			install just this umbrella; the schemes flow in transitively.
 		-->
-		<PackageReference Include="Cirreum.Contracts" Version="6.2.0" />
 		<PackageReference Include="Cirreum.Runtime.AuthenticationProvider" Version="2.2.1" />
 
 		<PackageReference Include="Cirreum.Authentication.ApiKey" Version="2.1.7" />
