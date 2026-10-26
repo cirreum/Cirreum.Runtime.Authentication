@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-26
+
 ### Changed
 
 - **Host work resolves to the `Global` boundary.** The primary-scheme boundary resolver
