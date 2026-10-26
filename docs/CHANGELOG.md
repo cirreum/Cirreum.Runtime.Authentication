@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Host work resolves to the `Global` boundary.** The primary-scheme boundary resolver
+  classified every non-primary scheme as `Tenant`, which would have placed work the host
+  starts on its own behalf (the `Cirreum.Host` scheme) with customer-tenant callers. The host
+  is the operator's application, so it now resolves `Global` alongside the primary scheme. A
+  continuation carrying a subject's origin scheme still resolves for that scheme.
+
 ## [1.4.5] - 2026-10-25
 
 ### Updated

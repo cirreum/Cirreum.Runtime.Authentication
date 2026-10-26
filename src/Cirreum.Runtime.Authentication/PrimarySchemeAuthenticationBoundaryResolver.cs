@@ -1,5 +1,6 @@
 namespace Cirreum.Authentication;
 
+using Cirreum.Invocation;
 using Cirreum.Security;
 
 /// <summary>
@@ -9,9 +10,11 @@ using Cirreum.Security;
 /// <remarks>
 /// <para>
 /// Callers who authenticate via the primary scheme are classified as
-/// <see cref="AuthenticationBoundary.Global"/> (operator staff). All other authenticated
-/// schemes — External (BYOID), API keys, signed requests, secondary Entra or OIDC
-/// instances — are classified as <see cref="AuthenticationBoundary.Tenant"/>.
+/// <see cref="AuthenticationBoundary.Global"/> (operator staff), as is work the host starts
+/// on its own behalf (<see cref="HostInvocationDefaults.Scheme"/>): the host is the
+/// operator's application. All other authenticated schemes — External (BYOID), API keys,
+/// signed requests, secondary Entra or OIDC instances — are classified as
+/// <see cref="AuthenticationBoundary.Tenant"/>.
 /// </para>
 /// <para>
 /// Registered by <c>AddAuthentication()</c> with <c>TryAdd</c> semantics, so an
@@ -28,6 +31,7 @@ internal sealed class PrimarySchemeAuthenticationBoundaryResolver(string primary
 			return AuthenticationBoundary.None;
 		}
 		return string.Equals(authenticationScheme, primaryScheme, StringComparison.OrdinalIgnoreCase)
+			|| string.Equals(authenticationScheme, HostInvocationDefaults.Scheme, StringComparison.Ordinal)
 			? AuthenticationBoundary.Global
 			: AuthenticationBoundary.Tenant;
 	}
